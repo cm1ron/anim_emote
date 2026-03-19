@@ -194,6 +194,10 @@
     <div class="alert-text"><strong>스모크테스트 발견 버그 6건 (BUG-03~08)</strong> — P1: 롤링 순서, 소유 번들 구매 표기, 레드닷 미제거, Save 버튼 이모트 노출 / P2: 타이머 중첩, 컬러 변경 미제거. 버그 탭에서 상세 확인.</div>
   </div>
   <div class="alert alert-purple">
+    <span>🔄</span>
+    <div class="alert-text"><strong>Figma Spec 업데이트 (강창모, 2026-03-14)</strong> — 전환 로직 화면 추가됨. ① 상위 메뉴/카테고리 전환 시 애니/이모트 멈춤 + 기본 정자세 + Tooltip 제거 ② Emote↔Animation 탭 전환도 동일 (다시 재생하려면 Inactived→Actived) ③ Marketplace→Customize 이동 시 썸네일 = "마지막 저장" 기준 (현재 장착 아님), 아이템 클릭해야 재생 ④ clear/reset/undo/redo 시에도 재생 멈춤 (조현철 확인, 2026-03-16)</div>
+  </div>
+  <div class="alert alert-purple">
     <span>🔵</span>
     <div class="alert-text"><strong>Sprint31 림라이트/코스튬 이슈</strong> — 특정 코스튬 조합에서 재현되는 아트/엔진 이슈. 재현 조건 확인 후 P0 처리.</div>
   </div>
@@ -431,8 +435,11 @@ adb logcat | grep -E "OVDR_grpc.*ERROR|Valid target emote does not exist|status.
       <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">1-9</span> <span class="badge badge-info">Spec</span> Tooltip Arrow indicator 클릭 → 순서대로 애니 전환 (Idle → Walk → Run → Jump → Fall → Sprint) / 역순 지원</div></li>
       <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">1-10</span> <span class="badge badge-info">Spec</span> Marketplace Info FAB(ⓘ) 클릭 → 번들 Bottomsheet 노출</div></li>
       <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">1-11</span> <span class="badge badge-info">Spec</span> Bottomsheet Detail 영역 List 클릭 → Bottomsheet 닫히고 해당 애니메이션 재생</div></li>
-      <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">1-12</span> <span class="badge badge-info">Spec</span> 커스터마이즈 Animation 탭 진입 (슬롯 미등록) → 기본 Idle <strong>Actived</strong> & 애니메이션 재생</div></li>
-      <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">1-13</span> <span class="badge badge-info">Spec</span> 커스터마이즈 Animation 탭 진입 (슬롯 등록됨) → 등록된 <strong>Idle 애니메이션</strong> 재생</div></li>
+      <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">1-12</span> <span class="badge badge-info">Spec</span> <span class="badge badge-warn" style="font-size:10px;">UPDATED</span> 커스터마이즈 Animation 탭 진입 → 캐릭터 <strong>정자세(기본 포즈)</strong>, 애니메이션 자동 재생 <strong>안 함</strong> (아이템 클릭 시 재생)</div></li>
+      <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">1-13</span> <span class="badge badge-info">Spec</span> <span class="badge badge-warn" style="font-size:10px;">UPDATED</span> 커스터마이즈 Animation 탭 진입 (슬롯 등록됨) → 썸네일은 <strong>마지막 저장 기준</strong> 표시, 재생은 아이템 클릭 후</div></li>
+      <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">1-14a</span> <span class="badge badge-info">Spec</span> <span class="badge badge-warn" style="font-size:10px;">NEW</span> 상위 메뉴 전환 (Animation↔Marketplace) → 애니/이모트 즉시 멈춤 + 기본 정자세 + Tooltip 제거</div></li>
+      <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">1-14b</span> <span class="badge badge-info">Spec</span> <span class="badge badge-warn" style="font-size:10px;">NEW</span> Emote↔Animation 탭 전환 → 재생 멈춤 + Tooltip 제거 (다시 Inactived→Actived 눌러야 재생)</div></li>
+      <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">1-14c</span> <span class="badge badge-info">Spec</span> <span class="badge badge-warn" style="font-size:10px;">NEW</span> 카테고리 전환 (Fullbody↔Clothing) → 애니/이모트 즉시 멈춤 + 기본 정자세</div></li>
       <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">1-14</span> <span class="badge badge-info">Spec</span> <code>Only</code> 토글 → 보유 아이템만 필터 (Marketplace 서브탭)</div></li>
     </ul>
   </div>
@@ -493,9 +500,9 @@ adb logcat | grep -E "OVDR_grpc.*ERROR|Valid target emote does not exist|status.
     <ul class="checklist" style="margin-bottom:12px;">
       <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">3-19</span>Clear 버튼 → <code>onClickClearAnimation</code> 이벤트 & <code>GetDefaultAnimations</code> 재호출</div></li>
       <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">3-20</span>Clear 후 Bundle 슬롯 <strong>Empty 표시</strong> 전환 확인</div></li>
-      <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">3-21</span>Clear 후 캐릭터 기본 애니메이션으로 복원 확인</div></li>
+      <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">3-21</span> <span class="badge badge-warn" style="font-size:10px;">UPDATED</span> Clear 후 캐릭터 <strong>기본 정자세(멈춤)</strong> 확인 — 애니메이션 자동 재생 안 함</div></li>
       <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">3-22</span> <span class="badge badge-info">Spec</span> Clear 시 토스트 메시지 노출: "Animation slot has been reset" + <strong>Undo 버튼</strong></div></li>
-      <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">3-23</span> <span class="badge badge-info">Spec</span> Undo 클릭 → Clear 이전 슬롯 상태로 <strong>복원</strong> + 토스트 사라짐</div></li>
+      <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">3-23</span> <span class="badge badge-info">Spec</span> <span class="badge badge-warn" style="font-size:10px;">UPDATED</span> Undo 클릭 → Clear 이전 슬롯 상태로 <strong>복원</strong> + 토스트 사라짐 (애니메이션은 <strong>멈춤 유지</strong>, 아이템 클릭 시 재생)</div></li>
       <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">3-24</span> <span class="badge badge-info">Spec</span> 토스트 <strong>2초 후 자동 사라짐</strong> 또는 <strong>외부 영역 클릭 시</strong> 사라짐</div></li>
       <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">3-25</span> <span class="badge badge-info">Spec</span> 슬롯에 등록된 애니메이션이 <strong>없는 상태</strong>에서 Clear → 토스트 <strong>미노출</strong></div></li>
       <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">3-26</span> <span class="badge badge-info">Spec</span> 기본 제공 애니메이션 외 이미 장착중인 슬롯을 한 번 더 클릭 → 오버레이 기본 애니메이션 슬롯 <strong>Actived</strong> 처리</div></li>
@@ -503,8 +510,9 @@ adb logcat | grep -E "OVDR_grpc.*ERROR|Valid target emote does not exist|status.
     </ul>
     <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;">Marketplace ↔ Customize 탭 전환</div>
     <ul class="checklist">
-      <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">3-28</span> <span class="badge badge-bug">BUG-02</span> Marketplace에서 번들 프리뷰 후 Customize 전환 → UE 애니 / UI 슬롯 / 번들 선택 <strong>3가지 일치</strong> 확인</div></li>
+      <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">3-28</span> <span class="badge badge-bug">BUG-02</span> <span class="badge badge-warn" style="font-size:10px;">UPDATED</span> Marketplace에서 번들 프리뷰 후 Customize 전환 → 프리뷰 <strong>즉시 정지</strong> + 캐릭터 기본 정자세 + 썸네일은 <strong>마지막 저장 기준</strong> 표시</div></li>
       <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">3-29</span> <span class="badge badge-bug">BUG-02</span> 탭 전환 시 <strong>Undo 토스트 자동 노출 안 됨</strong> 확인</div></li>
+      <li><div class="check-box" onclick="toggleCheck(this)"></div><div class="check-label"><span class="tc-id">3-30</span> <span class="badge badge-info">Spec</span> <span class="badge badge-warn" style="font-size:10px;">NEW</span> Marketplace → Customize 이동 후 아이템 클릭 → 해당 애니메이션 재생 (자동 재생 X)</div></li>
     </ul>
   </div>
 
@@ -599,7 +607,7 @@ adb logcat | grep -E "OVDR_grpc.*ERROR|Valid target emote does not exist|status.
   </div>
 
   <div class="section">
-    <div class="section-title">🐛 발견된 버그 (8건)</div>
+    <div class="section-title">🐛 발견된 버그 (11건)</div>
     <div class="tbl-wrap">
       <table>
         <thead><tr><th>BUG</th><th>우선순위</th><th>요약</th><th>담당</th></tr></thead>
@@ -613,6 +621,8 @@ adb logcat | grep -E "OVDR_grpc.*ERROR|Valid target emote does not exist|status.
           <tr><td><strong>BUG-07</strong></td><td><span class="badge badge-p2">P2</span></td><td>미리보기 타이머 중첩 (2번 넘겨짐)</td><td>Unreal/Android</td></tr>
           <tr><td><strong>BUG-08</strong></td><td><span class="badge badge-p2">P2</span></td><td>커마탭 애니/이모트 진입 시 컬러 변경 미제거</td><td>Android @조현철</td></tr>
           <tr style="background:rgba(246,107,107,0.05)"><td><strong>BUG-09</strong></td><td><span class="badge badge-p1">P1</span></td><td>마켓 Emote 선택 → Customize 전환 시 Emote 미리보기 미중지</td><td>Android @조현철</td></tr>
+          <tr style="background:rgba(246,107,107,0.05)"><td><strong>BUG-10</strong></td><td><span class="badge badge-p1">P1</span></td><td>구매 취소 시 번들 리스트 썸네일 미표시 — Animation fixedEquip:false → true 수정 필요</td><td>Server @김상현</td></tr>
+          <tr style="background:rgba(246,107,107,0.05)"><td><strong>BUG-11</strong></td><td><span class="badge badge-p2">P2</span></td><td>Reset→Save→Reset 시 Save 버튼 재활성화 (변경 없는데 dirty 처리)</td><td>Android @조현철</td></tr>
         </tbody>
       </table>
     </div>
@@ -816,11 +826,12 @@ adb logcat | grep -E "OVDR_grpc.*ERROR|Valid target emote does not exist|status.
       <div class="steps">
         <div class="step step-header"><div class="step-num">#</div><div class="step-cell">행동</div><div class="step-cell">기대 결과</div><div class="step-cell">logcat 확인</div></div>
         <div class="step"><div class="step-num">1</div><div class="step-cell">마켓플레이스 → Skate Pack 선택</div><div class="step-cell">Skate Idle <strong>프리뷰</strong> 재생</div><div class="step-cell"><code>A2U_EQUIP assetId:75999</code></div></div>
-        <div class="step"><div class="step-num">2</div><div class="step-cell">하단 Customize 탭 전환</div><div class="step-cell">프리뷰 <strong>즉시 정지</strong>, Default 복원</div><div class="step-cell"><code>A2U_STOP</code> → <code>GetDefaultAnimations</code></div></div>
-        <div class="step"><div class="step-num">3</div><div class="step-cell">Animations 탭 확인</div><div class="step-cell">Bundle: <strong>Default</strong> 선택, 6종 Default 썸네일</div><div class="step-cell">Skate <code>A2U_EQUIP</code> <strong>미발생</strong></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-cell">하단 Customize 탭 전환</div><div class="step-cell">프리뷰 <strong>즉시 정지</strong> + 캐릭터 <strong>기본 정자세</strong> (자동 재생 없음)</div><div class="step-cell"><code>A2U_STOP</code> → <code>GetDefaultAnimations</code></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-cell">Animations 탭 확인</div><div class="step-cell">썸네일: <strong>마지막 저장 기준</strong> 표시 (Default)</div><div class="step-cell">Skate <code>A2U_EQUIP</code> <strong>미발생</strong></div></div>
         <div class="step"><div class="step-num">4</div><div class="step-cell">Undo 토스트 확인</div><div class="step-cell"><strong>자동 노출 안 됨</strong></div><div class="step-cell"><code>CancellableToast</code> <strong>미발생</strong></div></div>
-        <div class="step"><div class="step-num">5</div><div class="step-cell">마켓 → Skate 장착 → Customize</div><div class="step-cell">장착된 Skate <strong>유지</strong></div><div class="step-cell"><code>GetDefaultAnimations</code> Skate 반영</div></div>
-        <div class="step"><div class="step-num">6</div><div class="step-cell">Market ↔ Customize <strong>5회 반복</strong></div><div class="step-cell">크래시 없음, 상태 정상</div><div class="step-cell">gRPC 중복 없음</div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-cell">아이템 클릭</div><div class="step-cell">해당 애니메이션 재생 시작</div><div class="step-cell"><code>A2U_EQUIP</code> 발생</div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-cell">마켓 → Skate 장착(Save) → Customize</div><div class="step-cell">썸네일: Skate 기준 표시 (저장됨), 캐릭터 <strong>정자세</strong></div><div class="step-cell"><code>GetDefaultAnimations</code> Skate 반영</div></div>
+        <div class="step"><div class="step-num">7</div><div class="step-cell">Market ↔ Customize <strong>5회 반복</strong></div><div class="step-cell">크래시 없음, 매번 정자세로 전환</div><div class="step-cell">gRPC 중복 없음</div></div>
       </div>
     </div>
   </div>
@@ -1161,16 +1172,21 @@ adb logcat | grep -E "OVDR_grpc.*ERROR|Valid target emote does not exist|status.
 
   <!-- BUG-02 Marketplace → Customize 3-way 불일치 -->
   <div class="bug-card">
-    <div class="bug-title">BUG-02 — Marketplace → Customize 전환 시 애니메이션 상태 3-way 불일치</div>
-    <div class="bug-meta">발견: 2026-03-12 &nbsp;·&nbsp; Figma UX Spec 근거 &nbsp;·&nbsp; 우선순위: <span class="badge badge-p0">P0</span></div>
+    <div class="bug-title">BUG-02 — Marketplace → Customize 전환 시 애니메이션 상태 불일치 <span class="badge badge-warn" style="font-size:10px;">정책 변경으로 재검토</span></div>
+    <div class="bug-meta">발견: 2026-03-12 &nbsp;·&nbsp; Figma UX Spec 근거 &nbsp;·&nbsp; 우선순위: <span class="badge badge-p0">P0</span> → <span class="badge badge-p1">P1 재검토</span></div>
     <div style="font-size:13px;color:var(--text);margin-bottom:14px;line-height:1.7;">
-      Marketplace에서 번들을 선택(프리뷰)한 뒤 Customize 탭 → Animations로 이동하면 <strong>UE 애니메이션 재생 / 슬롯 리스트 UI / 번들 선택 상태</strong> 3가지가 각각 불일치. 유저가 Clear를 누르지 않았는데 <code>onClickProduct</code> 자동 트리거 → Default Pack 선택. Clear 전용 Undo 토스트가 탭 전환만으로 노출됨 (UX Spec: Clear 버튼 클릭 시에만 토스트).
+      <strong>[2026-03-16 정책 업데이트]</strong> Figma 전환 로직 화면 추가 (강창모)에 따라 기대 동작이 변경됨:<br>
+      ① Marketplace→Customize 전환 시 프리뷰 <strong>즉시 정지</strong> + 캐릭터 기본 정자세 (OK — 기존에도 A2U_STOP 발생)<br>
+      ② 썸네일은 <strong>"마지막 저장" 기준</strong>으로 표시 (Marketplace 선택이 아님)<br>
+      ③ 아이템 클릭해야 재생 (자동 재생 X)<br>
+      <span style="color:var(--yellow)">⚠️ 여전히 유효한 이슈:</span> <code>onClickProduct</code> 자동 트리거 + Undo 토스트 노출은 정책 변경과 무관하게 버그.
     </div>
     <div class="diff-table">
-      <div class="diff-row diff-header"><div class="diff-cell">영역</div><div class="diff-cell">실제 상태</div><div class="diff-cell">기대 상태 (UX Spec)</div></div>
-      <div class="diff-row"><div class="diff-cell">UE 애니메이션 재생</div><div class="diff-cell bad">Marketplace 프리뷰 애니 계속 재생 중</div><div class="diff-cell good">슬롯 미등록 시 → 기본 Idle / 등록 시 → 등록된 Idle 재생</div></div>
-      <div class="diff-row"><div class="diff-cell">슬롯 리스트 (UI)</div><div class="diff-cell bad">Default 아이템들 표시</div><div class="diff-cell good">재생 중인 애니와 일치</div></div>
-      <div class="diff-row"><div class="diff-cell">번들 선택 상태 (UI)</div><div class="diff-cell bad">아무 번들도 선택 안 됨</div><div class="diff-cell good">슬롯 미등록 시 → 선택 없음 / 등록 시 → 해당 번들 Actived</div></div>
+      <div class="diff-row diff-header"><div class="diff-cell">영역</div><div class="diff-cell">실제 상태</div><div class="diff-cell">기대 상태 (업데이트된 Spec)</div></div>
+      <div class="diff-row"><div class="diff-cell">UE 애니메이션 재생</div><div class="diff-cell bad">Marketplace 프리뷰 애니 계속 재생 중 → 이후 Skate 재장착</div><div class="diff-cell good">프리뷰 즉시 정지 + 기본 정자세 (재생 없음)</div></div>
+      <div class="diff-row"><div class="diff-cell">슬롯 리스트 (UI)</div><div class="diff-cell bad">Default 아이템들 표시 (자동 트리거)</div><div class="diff-cell good">마지막 저장 기준 아이템 표시</div></div>
+      <div class="diff-row"><div class="diff-cell">번들 선택 상태 (UI)</div><div class="diff-cell bad">아무 번들도 선택 안 됨</div><div class="diff-cell good">마지막 저장된 번들 Actived (또는 Empty)</div></div>
+      <div class="diff-row"><div class="diff-cell">Undo 토스트</div><div class="diff-cell bad">탭 전환만으로 자동 노출</div><div class="diff-cell good">Clear 버튼 클릭 시에만 노출</div></div>
     </div>
     <div class="logcat-block" style="margin-bottom:14px;">
       <div class="logcat-title">logcat 근거</div>
@@ -1185,17 +1201,16 @@ adb logcat | grep -E "OVDR_grpc.*ERROR|Valid target emote does not exist|status.
     <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:8px;">정식 QA 재확인 포인트</div>
     <ul class="action-list" style="margin-bottom:14px;">
       <li class="action-item">Marketplace → 번들 선택(프리뷰) → Customize 탭 전환 → Animations 진입</li>
-      <li class="action-item">캐릭터 애니메이션이 **저장된 상태**(또는 기본 Idle)로 복원되는지 확인</li>
-      <li class="action-item">슬롯 리스트 UI가 재생 중인 애니와 일치하는지 확인</li>
-      <li class="action-item">번들 선택 상태가 실제 장착 상태와 일치하는지 확인</li>
-      <li class="action-item">Undo 토스트가 **Clear 버튼 미클릭** 시 노출되지 않는지 확인</li>
-      <li class="action-item">logcat에서 <code>onClickProduct</code> 자동 트리거 여부 확인</li>
+      <li class="action-item">캐릭터가 <strong>기본 정자세(멈춤)</strong>인지 확인 (프리뷰 즉시 정지, 자동 재생 없음)</li>
+      <li class="action-item">슬롯 썸네일이 <strong>마지막 저장 기준</strong>으로 표시되는지 확인 (Marketplace 선택 아님)</li>
+      <li class="action-item">Undo 토스트가 <strong>Clear 버튼 미클릭</strong> 시 노출되지 않는지 확인</li>
+      <li class="action-item">logcat에서 <code>onClickProduct</code> 자동 트리거 여부 확인 (여전히 버그)</li>
+      <li class="action-item">아이템 클릭 시 해당 애니메이션 정상 재생되는지 확인</li>
     </ul>
     <ul class="action-list">
-      <li class="action-item">1️⃣ &nbsp; Customize 탭 전환 시 Marketplace 프리뷰 상태 명시적 정리</li>
-      <li class="action-item">2️⃣ &nbsp; Customize 진입 시 실제 저장된 장착 상태 기준으로 UE + UI 동기화</li>
-      <li class="action-item">3️⃣ &nbsp; <code>onClickProduct</code> 자동 트리거 제거 → 상태 복원은 별도 로직</li>
-      <li class="action-item">4️⃣ &nbsp; 토스트 노출 조건: Clear 버튼 클릭 시에만 (UX Spec 준수) → @조현철</li>
+      <li class="action-item">1️⃣ &nbsp; <code>onClickProduct</code> 자동 트리거 제거 → 상태 복원은 저장 기준 별도 로직 → @조현철</li>
+      <li class="action-item">2️⃣ &nbsp; Customize 진입 시 "마지막 저장" 기준으로 UE + UI 동기화 (Figma 전환 로직 준수)</li>
+      <li class="action-item">3️⃣ &nbsp; 토스트 노출 조건: Clear 버튼 클릭 시에만 (UX Spec 준수) → @조현철</li>
     </ul>
   </div>
 
@@ -1308,6 +1323,50 @@ adb logcat | grep -E "OVDR_grpc.*ERROR|Valid target emote does not exist|status.
       <li class="action-item">1️⃣ &nbsp; 재현 조건 코스튬 조합 확인 → @최정효 / @이재니</li>
       <li class="action-item">2️⃣ &nbsp; 재현 후 Client + Server 로그 수집 (<code>GetCostumeObjectPath</code> 키워드)</li>
       <li class="action-item">3️⃣ &nbsp; 로그 → @정석영 (엔진) / @유현욱 (휴머노이드) 전달</li>
+    </ul>
+  </div>
+
+  <!-- BUG-10 번들 리스트 썸네일 미표시 -->
+  <div class="bug-card">
+    <div class="bug-title" style="color:var(--red);">BUG-10 — 구매 취소 시 번들 리스트 썸네일 미표시 (fixedEquip 서버값 오류)</div>
+    <div class="bug-meta">발견: 2026-03-18 &nbsp;·&nbsp; logcat + 서버 확인 &nbsp;·&nbsp; 우선순위: <span class="badge badge-p1">P1</span> &nbsp;·&nbsp; 담당: Server @김상현</div>
+    <div style="font-size:13px;color:var(--text);margin-bottom:14px;line-height:1.7;">
+      구매 카트에서 미구매 애니메이션 번들을 제거(장착 해제)하면, 기본템 장착 필수 파트(animation, body)의 썸네일이 사라짐.<br>
+      <strong>원인:</strong> 서버에서 animation 아이템의 <code>fixedEquip</code>을 <code>false</code>로 내려줌 → 클라이언트의 "기본으로 되돌리기" 로직이 동작하지 않음.<br>
+      <strong>수정:</strong> body + animation 관련 아이템 모두 <code>fixedEquip: true</code>로 변경 필요. (서버 @김상현 확인 완료)
+    </div>
+    <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:8px;">재현 스텝</div>
+    <ul class="action-list" style="margin-bottom:14px;">
+      <li class="action-item">1. 마켓플레이스 진입 → 구매하지 않은 임의의 애니메이션 번들 선택</li>
+      <li class="action-item">2. 커스터마이즈 진입 → 애니메이션 탭 이동</li>
+      <li class="action-item">3. 기본 번들 목록 중 임의의 리스트 선택 (ex. Idle) → Idle을 기본 Idle 선택</li>
+      <li class="action-item">4. Save 선택 → 카트 내 구매하려던 애니메이션 번들 취소</li>
+      <li class="action-item">5. 다시 Save 버튼 선택 → <strong>번들 목록 썸네일 미표시 (⚠️ 아이콘)</strong></li>
+    </ul>
+    <ul class="action-list">
+      <li class="action-item">1️⃣ &nbsp; Animation 아이템 <code>fixedEquip: true</code>로 변경 → @김상현</li>
+      <li class="action-item">2️⃣ &nbsp; Body 관련 아이템도 동일하게 <code>fixedEquip: true</code> 확인 → @김상현</li>
+    </ul>
+  </div>
+
+  <!-- BUG-11 Reset→Save→Reset Save 재활성화 -->
+  <div class="bug-card">
+    <div class="bug-title" style="color:var(--orange);">BUG-11 — Reset→Save→Reset 시 Save 버튼 재활성화 (dirty flag 오작동)</div>
+    <div class="bug-meta">발견: 2026-03-18 &nbsp;·&nbsp; 실기기 확인 &nbsp;·&nbsp; 우선순위: <span class="badge badge-p2">P2</span> &nbsp;·&nbsp; 담당: Android @조현철</div>
+    <div style="font-size:13px;color:var(--text);margin-bottom:14px;line-height:1.7;">
+      모든 아이템 해제(Reset) → Save 완료 → 다시 Reset 누르면 Save 버튼이 활성화됨.<br>
+      이미 저장된 상태와 동일한데 dirty flag가 세팅되는 문제. 현재 상태 vs 저장 상태 비교 누락 추정.
+    </div>
+    <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:8px;">재현 스텝</div>
+    <ul class="action-list" style="margin-bottom:14px;">
+      <li class="action-item">커스터마이즈 → Animations → 아이템 장착 상태</li>
+      <li class="action-item">Reset(Clear) 버튼 → 모든 슬롯 초기화</li>
+      <li class="action-item">Save 버튼 → 저장 완료 (기본 상태 저장됨)</li>
+      <li class="action-item">다시 Reset(Clear) 버튼 → <strong>Save 버튼 활성화됨 (버그)</strong></li>
+    </ul>
+    <ul class="action-list">
+      <li class="action-item">1️⃣ &nbsp; Reset/Clear 시 현재 상태 == 저장 상태 비교 로직 추가 필요 → @조현철</li>
+      <li class="action-item">2️⃣ &nbsp; 동일 상태면 dirty flag 세팅하지 않도록 수정</li>
     </ul>
   </div>
 
