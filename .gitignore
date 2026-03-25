@@ -1,12 +1,27 @@
 # 로컬 전용 참고자료 (git 미추적)
-*.png
 *.zip
 *.xlsx
-*.pdf
+
+# 루트 레벨 이미지/PDF만 제외 (S32/ 하위는 추적)
+/*.png
+/*.pdf
 
 # 루트의 원본 파일 (Animation/Emote/ 폴더가 정본)
 /overdare_*.md
 /overdare_*.html
 
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+venv/
+.venv/
+
+# 테스트
+.auth/
+.env
+
 # OS
 .DS_Store
+Thumbs.db
