@@ -8,5 +8,18 @@
 /overdare_*.md
 /overdare_*.html
 
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+venv/
+.venv/
+
+# 테스트
+.auth/
+.env
+
 # OS
 .DS_Store
+Thumbs.db
