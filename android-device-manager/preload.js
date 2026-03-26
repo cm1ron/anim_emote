@@ -38,6 +38,12 @@ contextBridge.exposeInMainWorld('api', {
   startScrcpy: (serial, options) => ipcRenderer.invoke('scrcpy:start', serial, options),
   stopScrcpy: () => ipcRenderer.invoke('scrcpy:stop'),
   isScrcpyRunning: () => ipcRenderer.invoke('scrcpy:is-running'),
+  startRecording: (serial) => ipcRenderer.invoke('scrcpy:start-record', serial),
+  stopRecording: () => ipcRenderer.invoke('scrcpy:stop-record'),
+  isRecording: () => ipcRenderer.invoke('scrcpy:is-recording'),
+  onRecordingStopped: (cb) => {
+    ipcRenderer.on('scrcpy-record-stopped', (_, data) => cb(data));
+  },
   screencap: (serial) => ipcRenderer.invoke('adb:screencap', serial),
 
   dumpUi: (serial) => ipcRenderer.invoke('adb:dump-ui', serial),

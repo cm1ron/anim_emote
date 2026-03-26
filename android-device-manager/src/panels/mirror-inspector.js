@@ -15,9 +15,11 @@ const MirrorInspector = {
   dragState: null,
   lastLogsDir: null,
   scrcpyRunning: false,
+  recording: false,
 
   init() {
     document.getElementById('scrcpy-toggle').addEventListener('click', () => this.toggleScrcpy());
+    document.getElementById('record-toggle').addEventListener('click', () => this.toggleRecording());
     document.getElementById('mirror-toggle').addEventListener('click', () => this.toggleMirror());
     document.getElementById('mirror-screenshot').addEventListener('click', () => this.singleCapture());
     document.getElementById('inspector-refresh').addEventListener('click', () => this.scanUi());
@@ -69,6 +71,55 @@ const MirrorInspector = {
         App.toast('scrcpy 창이 종료됨', 'info');
       }
     });
+
+    window.api.onRecordingStopped((data) => {
+      if (this.recording) {
+        this.recording = false;
+        const btn = document.getElementById('record-toggle');
+        btn.classList.remove('recording');
+        if (data.filePath) {
+          const fileName = data.filePath.split(/[\\/]/).pop();
+          App.toast(`녹화 저장 완료: ${fileName}`, 'success');
+        } else if (data.error) {
+          App.toast(`녹화 실패: ${data.error}`, 'error');
+        }
+      }
+    });
+  },
+
+  // --- 녹화 ---
+
+  async toggleRecording() {
+    const btn = document.getElementById('record-toggle');
+    if (this.recording) {
+      await window.api.stopRecording();
+      this.recording = false;
+      btn.classList.remove('recording');
+      App.toast('녹화 중지 — 파일 저장 중...', 'info');
+    } else {
+      if (!App.currentDevice) return App.toast('디바이스를 먼저 연결해주세요', 'error');
+      if (!this.scrcpyRunning) {
+        const scrcpyResult = await window.api.startScrcpy(App.currentDevice, {
+          windowTitle: 'Android Mirror',
+          stayAwake: true,
+        });
+        if (scrcpyResult.success) {
+          this.scrcpyRunning = true;
+          const scrcpyBtn = document.getElementById('scrcpy-toggle');
+          scrcpyBtn.textContent = 'scrcpy 중지';
+          scrcpyBtn.classList.remove('btn-primary');
+          scrcpyBtn.classList.add('btn-danger');
+        }
+      }
+      const result = await window.api.startRecording(App.currentDevice);
+      if (result.success) {
+        this.recording = true;
+        btn.classList.add('recording');
+        App.toast('녹화 시작', 'success');
+      } else {
+        App.toast(`녹화 실패: ${result.error}`, 'error');
+      }
+    }
   },
 
   // --- scrcpy (고성능 별도 창) ---

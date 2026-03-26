@@ -125,9 +125,29 @@ function setupIpcHandlers() {
       mainWindow.webContents.send('scrcpy-exited');
     }
   };
+  scrcpyMgr.onRecordExit = (filePath, error) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('scrcpy-record-stopped', { filePath, error });
+    }
+  };
   ipcMain.handle('scrcpy:start', (_, serial, options) => scrcpyMgr.start(serial, options));
   ipcMain.handle('scrcpy:stop', () => scrcpyMgr.stop());
   ipcMain.handle('scrcpy:is-running', () => scrcpyMgr.isRunning());
+
+  ipcMain.handle('scrcpy:start-record', (_, serial) => {
+    const fs = require('fs');
+    const today = new Date().toISOString().slice(0, 10);
+    const dir = path.join(__dirname, 'screenshots', today);
+    fs.mkdirSync(dir, { recursive: true });
+
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2,'0')}-${now.getMinutes().toString().padStart(2,'0')}-${now.getSeconds().toString().padStart(2,'0')}`;
+    const filePath = path.join(dir, `record_${time}.mp4`);
+
+    return scrcpyMgr.startRecording(serial, filePath);
+  });
+  ipcMain.handle('scrcpy:stop-record', () => scrcpyMgr.stopRecording());
+  ipcMain.handle('scrcpy:is-recording', () => scrcpyMgr.isRecording());
   ipcMain.handle('adb:screencap', (_, serial) => adb.screencap(serial));
 
   ipcMain.handle('adb:dump-ui', (_, serial) => adb.dumpUi(serial));
