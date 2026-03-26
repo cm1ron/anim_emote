@@ -1,11 +1,13 @@
 const { spawn } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 const isWin = process.platform === 'win32';
 
 class ScrcpyManager {
   constructor(scrcpyDir) {
     const bin = isWin ? 'scrcpy.exe' : 'scrcpy';
-    this.scrcpyPath = scrcpyDir ? path.join(scrcpyDir, bin) : bin;
+    const vendorBin = scrcpyDir ? path.join(scrcpyDir, bin) : null;
+    this.scrcpyPath = (vendorBin && fs.existsSync(vendorBin)) ? vendorBin : bin;
     this.process = null;
     this.onExit = null;
   }
