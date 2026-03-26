@@ -135,6 +135,7 @@ const MirrorInspector = {
       App.toast('scrcpy 종료', 'info');
     } else {
       if (!App.currentDevice) return App.toast('디바이스를 먼저 연결해주세요', 'error');
+      if (this.mirroring) this.stopMirror();
       const result = await window.api.startScrcpy(App.currentDevice, {
         windowTitle: 'Android Mirror',
         stayAwake: true,
@@ -151,6 +152,17 @@ const MirrorInspector = {
     }
   },
 
+  async stopScrcpyIfRunning() {
+    if (this.scrcpyRunning) {
+      await window.api.stopScrcpy();
+      this.scrcpyRunning = false;
+      const btn = document.getElementById('scrcpy-toggle');
+      btn.textContent = 'scrcpy (고성능)';
+      btn.classList.remove('btn-danger');
+      btn.classList.add('btn-primary');
+    }
+  },
+
   // --- 내장 미러링 (screencap) ---
 
   toggleMirror() {
@@ -161,8 +173,9 @@ const MirrorInspector = {
     }
   },
 
-  startMirror() {
+  async startMirror() {
     if (!App.currentDevice) return App.toast('디바이스를 먼저 연결해주세요', 'error');
+    await this.stopScrcpyIfRunning();
     this.mirroring = true;
     this.inspectMode = false;
     this.nodes = [];
@@ -212,8 +225,10 @@ const MirrorInspector = {
       const result = await window.api.screencap(App.currentDevice);
       if (result.success && this.mirroring) {
         this.showImage(result.data);
+      } else if (!result.success && this.mirroring) {
+        console.warn('screencap failed:', result.error);
       }
-    } catch { /* ignore */ }
+    } catch (e) { console.warn('captureFrame error:', e); }
     this.capturing = false;
   },
 

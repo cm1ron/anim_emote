@@ -21,10 +21,12 @@ class AdbManager {
     });
   }
 
-  _execText(args, serial) {
+  _execText(args, serial, opts = {}) {
     return new Promise((resolve, reject) => {
       const fullArgs = serial ? ['-s', serial, ...args] : args;
-      execFile(this.adbPath, fullArgs, { maxBuffer: 1024 * 1024 * 10 }, (err, stdout, stderr) => {
+      const maxBuf = opts.maxBuffer || 1024 * 1024 * 10;
+      const timeout = opts.timeout || 0;
+      execFile(this.adbPath, fullArgs, { maxBuffer: maxBuf, timeout }, (err, stdout, stderr) => {
         if (err && !stdout) {
           reject(new Error(stderr || err.message));
           return;
@@ -148,6 +150,51 @@ class AdbManager {
     } catch {
       return '';
     }
+  }
+
+  async getRunningAppInfo(serial, pkg) {
+    const result = { server: '', unrealVersion: '', appVersion: '' };
+    const appLogDir = `/sdcard/Android/data/${pkg}/files/App`;
+
+    try {
+      const ls = await this._execText(['shell', 'ls', '-t', appLogDir], serial);
+      const files = ls.trim().split('\n').filter(f => f.startsWith('LogHandler'));
+      if (files.length > 0) {
+        const latest = files[0].trim();
+        const header = await this._execText(['shell', 'head', '-10', `${appLogDir}/${latest}`], serial);
+        const lines = header.split('\n');
+        for (const line of lines) {
+          const uv = line.match(/^UnrealVersion:\s*(\S+)/);
+          if (uv) result.unrealVersion = uv[1];
+          const av = line.match(/^AppVersionName:\s*(\S+)/);
+          if (av) result.appVersion = av[1];
+        }
+      }
+    } catch {}
+
+    if (!result.appVersion) {
+      try {
+        const ver = await this.getPackageVersion(serial, pkg);
+        result.appVersion = ver;
+      } catch {}
+    }
+
+    try {
+      const log = await this._execText(['logcat', '-d', '-t', '3000'], serial);
+      const lines = log.split('\n');
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const sv = lines[i].match(/tls-farm-(\w+)\.ovdr\.io/);
+        if (sv) { result.server = sv[1]; break; }
+      }
+      if (!result.server) {
+        for (let i = lines.length - 1; i >= 0; i--) {
+          const fm = lines[i].match(/farmName=(\w+)/);
+          if (fm) { result.server = fm[1]; break; }
+        }
+      }
+    } catch {}
+
+    return result;
   }
 
   async uninstallPackage(serial, pkg) {

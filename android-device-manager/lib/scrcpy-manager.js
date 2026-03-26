@@ -53,8 +53,9 @@ class ScrcpyManager {
 
   stop() {
     if (this.process) {
-      this.process.kill();
+      const p = this.process;
       this.process = null;
+      try { p.kill(); } catch { /* ignore */ }
     }
     return { success: true };
   }

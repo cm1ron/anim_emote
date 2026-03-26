@@ -452,9 +452,14 @@ body {
   border-radius: var(--radius);
   overflow: hidden;
 }
-.mi-memo-wrap {
-  height: 140px;
+.mi-bottom-row {
+  height: 160px;
   flex-shrink: 0;
+  display: flex;
+  gap: 6px;
+}
+.mi-memo-wrap {
+  flex: 1;
   display: flex;
   flex-direction: column;
   background: var(--bg-surface);
@@ -472,6 +477,39 @@ body {
   font-size: 12px;
   resize: none;
   outline: none;
+}
+.mi-appinfo-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.appinfo-grid {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  overflow-y: auto;
+}
+.appinfo-row {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  align-items: baseline;
+}
+.appinfo-label {
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 60px;
+}
+.appinfo-value {
+  color: var(--text-primary);
+  word-break: break-all;
+  font-family: var(--font-mono);
 }
 .inspector-tree {
   flex: 1;
@@ -640,8 +678,6 @@ body {
   background: var(--border);
   margin: 8px 0;
 }
-
-/* Recording button */
 .btn-record {
   display: inline-flex;
   align-items: center;

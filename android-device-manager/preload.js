@@ -6,7 +6,6 @@ contextBridge.exposeInMainWorld('api', {
   pairDevice: (address, code) => ipcRenderer.invoke('adb:pair', address, code),
   connectWireless: (address) => ipcRenderer.invoke('adb:connect-wireless', address),
   disconnectWireless: (address) => ipcRenderer.invoke('adb:disconnect-wireless', address),
-  autoWireless: (serial) => ipcRenderer.invoke('adb:auto-wireless', serial),
   getDeviceInfo: (serial) => ipcRenderer.invoke('adb:get-device-info', serial),
   onDevicesChanged: (cb) => {
     ipcRenderer.on('devices-changed', (_, devices) => cb(devices));
@@ -48,6 +47,7 @@ contextBridge.exposeInMainWorld('api', {
   screencap: (serial) => ipcRenderer.invoke('adb:screencap', serial),
 
   dumpUi: (serial) => ipcRenderer.invoke('adb:dump-ui', serial),
+  getRunningAppInfo: (serial, pkg) => ipcRenderer.invoke('adb:running-app-info', serial, pkg),
   inputTap: (serial, x, y) => ipcRenderer.invoke('adb:input-tap', serial, x, y),
   inputSwipe: (serial, x1, y1, x2, y2, dur) => ipcRenderer.invoke('adb:input-swipe', serial, x1, y1, x2, y2, dur),
   inputKey: (serial, keycode) => ipcRenderer.invoke('adb:input-key', serial, keycode),

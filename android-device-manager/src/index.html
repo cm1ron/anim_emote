@@ -179,12 +179,28 @@
                 <p style="color:var(--text-muted);font-size:12px;padding:8px">요소를 선택하면 속성이 표시됩니다.</p>
               </div>
             </div>
-            <div class="mi-memo-wrap">
-              <div class="card-title" style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-                <span>메모</span>
-                <button class="btn btn-sm" id="memo-clear" style="padding:2px 8px;font-size:11px">지우기</button>
+            <div class="mi-bottom-row">
+              <div class="mi-appinfo-wrap">
+                <div class="card-title" style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+                  <span>OVERDARE 앱 정보</span>
+                  <div style="display:flex;gap:4px">
+                    <button class="btn btn-sm btn-accent" id="fetch-app-info" style="padding:2px 8px;font-size:11px">조회</button>
+                    <button class="btn btn-sm btn-folder" id="copy-app-info" style="display:none;padding:2px 8px;font-size:11px">복사</button>
+                  </div>
+                </div>
+                <div class="appinfo-grid">
+                  <div class="appinfo-row"><span class="appinfo-label">서버환경</span><span class="appinfo-value" id="app-info-server">-</span></div>
+                  <div class="appinfo-row"><span class="appinfo-label">언리얼버전</span><span class="appinfo-value" id="app-info-unreal">-</span></div>
+                  <div class="appinfo-row"><span class="appinfo-label">앱버전</span><span class="appinfo-value" id="app-info-appver">-</span></div>
+                </div>
               </div>
-              <textarea id="inspector-memo" placeholder="복사한 값을 여기에 붙여넣기..."></textarea>
+              <div class="mi-memo-wrap">
+                <div class="card-title" style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+                  <span>메모</span>
+                  <button class="btn btn-sm" id="memo-clear" style="padding:2px 8px;font-size:11px">지우기</button>
+                </div>
+                <textarea id="inspector-memo" placeholder="복사한 값을 여기에 붙여넣기..."></textarea>
+              </div>
             </div>
             <div class="mi-log-viewer" id="extracted-log-viewer" style="display:none">
               <div class="extracted-log-header">
