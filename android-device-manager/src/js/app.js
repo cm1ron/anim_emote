@@ -39,6 +39,8 @@ const App = {
     this.updateDeviceList(devices);
   },
 
+  _wirelessConverted: new Set(),
+
   updateDeviceList(devices) {
     const sel = document.getElementById('device-selector');
     const dot = document.getElementById('status-dot');
@@ -68,6 +70,26 @@ const App = {
     }
     this.currentDevice = sel.value;
     this.onDeviceChanged();
+
+    this.tryAutoWireless(devices);
+  },
+
+  async tryAutoWireless(devices) {
+    const usbDevices = devices.filter((d) => !d.serial.includes(':'));
+    for (const d of usbDevices) {
+      if (this._wirelessConverted.has(d.serial)) continue;
+      this._wirelessConverted.add(d.serial);
+      this.toast('무선 연결 자동 전환 중...', 'info');
+      const result = await window.api.autoWireless(d.serial);
+      if (result.success) {
+        this.toast(`무선 연결 완료: ${result.address}`, 'success');
+        document.getElementById('wireless-disconnect-btn').style.display = '';
+        this.wirelessAddress = result.address;
+      } else {
+        this.toast(`무선 자동 전환 실패: ${result.error}`, 'error');
+        this._wirelessConverted.delete(d.serial);
+      }
+    }
   },
 
   onDeviceChanged() {
@@ -138,7 +160,8 @@ const App = {
     });
 
     document.getElementById('wireless-disconnect-btn').addEventListener('click', async () => {
-      await window.api.disconnectWireless(this.wirelessAddress || '');
+      const target = this.wirelessAddress || this.currentDevice || '';
+      await window.api.disconnectWireless(target);
       this.wirelessAddress = null;
       document.getElementById('wireless-disconnect-btn').style.display = 'none';
       this.toast('무선 연결 해제됨', 'info');

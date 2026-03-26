@@ -50,6 +50,16 @@ function setupIpcHandlers() {
 
   if (scrcpyDir && fs.existsSync(path.join(scrcpyDir, adbBin))) {
     adb.adbPath = path.join(scrcpyDir, adbBin);
+  } else if (!isWin) {
+    const homedir = require('os').homedir();
+    const fallbackPaths = [
+      path.join(homedir, 'Library/Android/sdk/platform-tools/adb'),
+      '/opt/homebrew/bin/adb',
+      '/usr/local/bin/adb',
+    ];
+    for (const p of fallbackPaths) {
+      if (fs.existsSync(p)) { adb.adbPath = p; break; }
+    }
   }
 
   scrcpyMgr = new ScrcpyManager(scrcpyDir);
@@ -130,6 +140,26 @@ function setupIpcHandlers() {
       mainWindow.webContents.send('scrcpy-record-stopped', { filePath, error });
     }
   };
+  ipcMain.handle('adb:auto-wireless', async (_, serial) => {
+    try {
+      const ip = await adb.getWifiIp(serial);
+      if (!ip) return { success: false, error: 'Wi-Fi IP를 가져올 수 없습니다. Wi-Fi 연결을 확인해주세요.' };
+
+      const tcpResult = await adb.enableTcpip(serial);
+      if (!tcpResult.success) return { success: false, error: `TCP 모드 전환 실패: ${tcpResult.output}` };
+
+      await new Promise((r) => setTimeout(r, 2000));
+
+      const address = `${ip}:5555`;
+      const connResult = await adb.connectWireless(address);
+      if (!connResult.success) return { success: false, error: `무선 연결 실패: ${connResult.output}` };
+
+      return { success: true, address };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+
   ipcMain.handle('scrcpy:start', (_, serial, options) => scrcpyMgr.start(serial, options));
   ipcMain.handle('scrcpy:stop', () => scrcpyMgr.stop());
   ipcMain.handle('scrcpy:is-running', () => scrcpyMgr.isRunning());

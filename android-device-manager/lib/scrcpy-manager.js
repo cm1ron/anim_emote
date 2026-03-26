@@ -7,7 +7,14 @@ class ScrcpyManager {
   constructor(scrcpyDir) {
     const bin = isWin ? 'scrcpy.exe' : 'scrcpy';
     const vendorBin = scrcpyDir ? path.join(scrcpyDir, bin) : null;
-    this.scrcpyPath = (vendorBin && fs.existsSync(vendorBin)) ? vendorBin : bin;
+    if (vendorBin && fs.existsSync(vendorBin)) {
+      this.scrcpyPath = vendorBin;
+    } else if (!isWin) {
+      const fallbacks = ['/opt/homebrew/bin/scrcpy', '/usr/local/bin/scrcpy'];
+      this.scrcpyPath = fallbacks.find((p) => fs.existsSync(p)) || bin;
+    } else {
+      this.scrcpyPath = bin;
+    }
     this.process = null;
     this.recordProcess = null;
     this.recordFilePath = null;

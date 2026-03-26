@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('api', {
   pairDevice: (address, code) => ipcRenderer.invoke('adb:pair', address, code),
   connectWireless: (address) => ipcRenderer.invoke('adb:connect-wireless', address),
   disconnectWireless: (address) => ipcRenderer.invoke('adb:disconnect-wireless', address),
+  autoWireless: (serial) => ipcRenderer.invoke('adb:auto-wireless', serial),
   getDeviceInfo: (serial) => ipcRenderer.invoke('adb:get-device-info', serial),
   onDevicesChanged: (cb) => {
     ipcRenderer.on('devices-changed', (_, devices) => cb(devices));

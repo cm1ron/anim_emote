@@ -316,6 +316,25 @@ class AdbManager {
     }
   }
 
+  async getWifiIp(serial) {
+    try {
+      const output = await this._execText(['shell', 'ip', '-f', 'inet', 'addr', 'show', 'wlan0'], serial);
+      const match = output.match(/inet\s+(\d+\.\d+\.\d+\.\d+)/);
+      return match ? match[1] : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async enableTcpip(serial, port = 5555) {
+    try {
+      const output = await this._execText(['tcpip', String(port)], serial);
+      return { success: output.toLowerCase().includes('restarting'), output: output.trim() };
+    } catch (e) {
+      return { success: false, output: e.message };
+    }
+  }
+
   async pair(address, code) {
     try {
       const output = await this._execText(['pair', address, code]);
