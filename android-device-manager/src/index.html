@@ -169,14 +169,38 @@
             </div>
           </div>
           <div class="mi-right">
-            <div class="mi-tree-wrap">
-              <div class="card-title" style="padding:8px 12px;border-bottom:1px solid var(--border)">UI 트리</div>
-              <div class="inspector-tree" id="inspector-tree"></div>
-            </div>
-            <div class="mi-props-wrap">
-              <div class="card-title" style="padding:8px 12px;border-bottom:1px solid var(--border)">속성</div>
-              <div class="inspector-props" id="inspector-props">
-                <p style="color:var(--text-muted);font-size:12px;padding:8px">요소를 선택하면 속성이 표시됩니다.</p>
+            <div class="mi-upper-row">
+              <div class="mi-inspect-col">
+                <div class="mi-tree-wrap">
+                  <div class="card-title" style="padding:8px 12px;border-bottom:1px solid var(--border)">UI 트리</div>
+                  <div class="inspector-tree" id="inspector-tree"></div>
+                </div>
+                <div class="mi-props-wrap">
+                  <div class="card-title" style="padding:8px 12px;border-bottom:1px solid var(--border)">속성</div>
+                  <div class="inspector-props" id="inspector-props">
+                    <p style="color:var(--text-muted);font-size:12px;padding:8px">요소를 선택하면 속성이 표시됩니다.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="mi-chat-wrap">
+                <div class="card-title" style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+                  <span>AI 어시스턴트</span>
+                  <div style="display:flex;gap:4px">
+                    <button class="btn btn-sm" id="ai-attach-log" style="padding:2px 8px;font-size:11px" title="디바이스 로그+UI 자동 수집">📎 디바이스</button>
+                    <button class="btn btn-sm" id="ai-reset" style="padding:2px 8px;font-size:11px" title="대화 초기화">초기화</button>
+                    <button class="btn btn-sm" id="ai-settings" style="padding:2px 8px;font-size:11px" title="API 키 설정">⚙</button>
+                  </div>
+                </div>
+                <div class="ai-messages" id="ai-messages">
+                  <div class="ai-welcome">
+                    <p>Gemini AI 어시스턴트입니다.</p>
+                    <p>로그 분석, ADB 명령어, QA 관련 질문을 해보세요.</p>
+                  </div>
+                </div>
+                <div class="ai-input-row">
+                  <textarea id="ai-input" placeholder="메시지를 입력하세요..." rows="1"></textarea>
+                  <button class="btn btn-sm btn-accent" id="ai-send">전송</button>
+                </div>
               </div>
             </div>
             <div class="mi-bottom-row">
@@ -217,11 +241,29 @@
 
   <div class="toast-container" id="toast-container"></div>
 
+  <!-- API Key Modal -->
+  <div class="modal-overlay" id="api-key-modal" style="display:none">
+    <div class="modal-content">
+      <div class="card-title" style="padding:12px;border-bottom:1px solid var(--border)">Gemini API 키 설정</div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+        <p style="font-size:12px;color:var(--text-muted)">
+          <a href="https://aistudio.google.com/apikey" style="color:#89b4fa" target="_blank">Google AI Studio</a>에서 무료 API 키를 발급받으세요.
+        </p>
+        <input type="text" id="api-key-input" placeholder="API 키를 입력하세요..." style="width:100%;padding:8px 12px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;outline:none">
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn btn-sm" id="api-key-cancel">취소</button>
+          <button class="btn btn-sm btn-accent" id="api-key-save">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="js/app.js"></script>
   <script src="panels/device.js"></script>
   <script src="panels/apps.js"></script>
   <script src="panels/logcat.js"></script>
   <script src="panels/files.js"></script>
   <script src="panels/mirror-inspector.js"></script>
+  <script src="panels/ai-chat.js"></script>
 </body>
 </html>

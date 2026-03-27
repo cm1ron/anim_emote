@@ -1,13 +1,53 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const AdbManager = require('./lib/adb-manager');
 const ScrcpyManager = require('./lib/scrcpy-manager');
 const DeviceMonitor = require('./lib/device-monitor');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 let mainWindow;
 let adb;
 let scrcpyMgr;
 let deviceMonitor;
+let geminiChat = null;
+
+const CONFIG_DIR = path.join(app.getPath('userData'), 'config');
+const CONFIG_FILE = path.join(CONFIG_DIR, 'settings.json');
+
+function loadConfig() {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+    }
+  } catch {}
+  return {};
+}
+
+function saveConfig(cfg) {
+  fs.mkdirSync(CONFIG_DIR, { recursive: true });
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), 'utf-8');
+}
+
+function initGemini(apiKey) {
+  if (!apiKey) return null;
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      systemInstruction: `당신은 Android QA 전문 어시스턴트입니다. 다음 역할을 수행합니다:
+- Android 디바이스 로그(logcat) 분석 및 오류 원인 파악
+- ADB 명령어 추천 및 사용법 안내
+- 앱 크래시, ANR, 성능 이슈 분석
+- QA 테스트 케이스 관련 도움
+한국어로 답변하고, 기술적 내용은 정확하게 전달합니다. 코드나 명령어는 코드 블록으로 감싸줍니다.`,
+    });
+    geminiChat = model.startChat({ history: [] });
+    return geminiChat;
+  } catch {
+    return null;
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -125,29 +165,34 @@ function setupIpcHandlers() {
       mainWindow.webContents.send('scrcpy-exited');
     }
   };
-  scrcpyMgr.onRecordExit = (filePath, error) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('scrcpy-record-stopped', { filePath, error });
-    }
-  };
   ipcMain.handle('scrcpy:start', (_, serial, options) => scrcpyMgr.start(serial, options));
   ipcMain.handle('scrcpy:stop', () => scrcpyMgr.stop());
   ipcMain.handle('scrcpy:is-running', () => scrcpyMgr.isRunning());
 
-  ipcMain.handle('scrcpy:start-record', (_, serial) => {
-    const fs = require('fs');
+  adb._onScreenRecordExit = () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('screen-record-finished');
+    }
+  };
+
+  ipcMain.handle('adb:start-record', (_, serial) => {
+    const now = new Date();
+    const ts = `${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}${now.getSeconds().toString().padStart(2,'0')}`;
+    const remotePath = `/sdcard/rec_${ts}.mp4`;
+    return adb.startScreenRecord(serial, remotePath);
+  });
+
+  ipcMain.handle('adb:stop-record', async (_, serial) => {
     const today = new Date().toISOString().slice(0, 10);
     const dir = path.join(__dirname, 'screenshots', today);
     fs.mkdirSync(dir, { recursive: true });
-
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2,'0')}-${now.getMinutes().toString().padStart(2,'0')}-${now.getSeconds().toString().padStart(2,'0')}`;
-    const filePath = path.join(dir, `record_${time}.mp4`);
-
-    return scrcpyMgr.startRecording(serial, filePath);
+    const localPath = path.join(dir, `record_${time}.mp4`);
+    return adb.stopScreenRecordAndPull(localPath);
   });
-  ipcMain.handle('scrcpy:stop-record', () => scrcpyMgr.stopRecording());
-  ipcMain.handle('scrcpy:is-recording', () => scrcpyMgr.isRecording());
+
+  ipcMain.handle('adb:is-recording', () => adb.isScreenRecording());
   ipcMain.handle('adb:screencap', (_, serial) => adb.screencap(serial));
 
   ipcMain.handle('adb:dump-ui', (_, serial) => adb.dumpUi(serial));
@@ -235,6 +280,76 @@ function setupIpcHandlers() {
     const { shell } = require('electron');
     shell.openPath(folderPath);
   });
+
+  ipcMain.handle('fs:read-logs-dir', async (_, dirPath) => {
+    const fsP = require('fs').promises;
+    try {
+      const files = await fsP.readdir(dirPath);
+      let combined = '';
+      for (const f of files) {
+        if (!f.endsWith('.txt') && !f.endsWith('.log')) continue;
+        const content = await fsP.readFile(path.join(dirPath, f), 'utf-8');
+        combined += `\n===== ${f} =====\n${content}\n`;
+        if (combined.length > 100000) break;
+      }
+      return { success: true, text: combined.slice(0, 100000) };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+
+  ipcMain.handle('adb:fetch-recent-log', async (_, serial) => {
+    try {
+      const log = await adb._execText(['logcat', '-d', '-t', '3000'], serial);
+      return { success: true, text: log };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+
+  // --- Gemini AI ---
+  ipcMain.handle('gemini:get-api-key', () => {
+    const cfg = loadConfig();
+    return cfg.geminiApiKey || '';
+  });
+
+  ipcMain.handle('gemini:set-api-key', (_, key) => {
+    const cfg = loadConfig();
+    cfg.geminiApiKey = key;
+    saveConfig(cfg);
+    geminiChat = null;
+    if (key) initGemini(key);
+    return { success: true };
+  });
+
+  ipcMain.handle('gemini:chat', async (_, message) => {
+    const cfg = loadConfig();
+    if (!cfg.geminiApiKey) return { success: false, error: 'API 키가 설정되지 않았습니다.' };
+
+    if (!geminiChat) {
+      initGemini(cfg.geminiApiKey);
+    }
+    if (!geminiChat) return { success: false, error: 'Gemini 초기화 실패' };
+
+    try {
+      const result = await geminiChat.sendMessage(message);
+      const text = result.response.text();
+      return { success: true, text };
+    } catch (e) {
+      if (e.message && e.message.includes('API_KEY_INVALID')) {
+        return { success: false, error: 'API_KEY_INVALID' };
+      }
+      geminiChat = null;
+      return { success: false, error: e.message || String(e) };
+    }
+  });
+
+  ipcMain.handle('gemini:reset', () => {
+    const cfg = loadConfig();
+    geminiChat = null;
+    if (cfg.geminiApiKey) initGemini(cfg.geminiApiKey);
+    return { success: true };
+  });
 }
 
 app.whenReady().then(() => {
@@ -250,6 +365,7 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   deviceMonitor.stop();
   adb.stopLogcat();
+  adb.stopScreenRecord();
   scrcpyMgr.stop();
   if (process.platform !== 'darwin') app.quit();
 });

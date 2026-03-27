@@ -6,6 +6,10 @@ class AdbManager {
   constructor() {
     this.adbPath = 'adb';
     this.logcatProcess = null;
+    this.screenRecordProcess = null;
+    this.screenRecordSerial = null;
+    this.screenRecordRemotePath = null;
+    this._onScreenRecordExit = null;
   }
 
   _exec(args, serial) {
@@ -259,17 +263,19 @@ class AdbManager {
 
   stopLogcat() {
     if (this.logcatProcess) {
-      const pid = this.logcatProcess.pid;
+      const p = this.logcatProcess;
+      this.logcatProcess = null;
+      try { p.kill('SIGTERM'); } catch {}
       try {
         if (isWin) {
-          execSync(`taskkill /pid ${pid} /T /F`, { stdio: 'ignore' });
+          execSync(`taskkill /pid ${p.pid} /T /F`, { stdio: 'ignore' });
         } else {
-          process.kill(-pid, 'SIGKILL');
+          process.kill(-p.pid, 'SIGKILL');
         }
-      } catch {
-        try { this.logcatProcess.kill('SIGKILL'); } catch { /* ignore */ }
-      }
-      this.logcatProcess = null;
+      } catch {}
+      setTimeout(() => {
+        try { p.kill('SIGKILL'); } catch {}
+      }, 500);
     }
   }
 
@@ -438,6 +444,60 @@ class AdbManager {
     try {
       await this._execText(['shell', 'input', 'text', text.replace(/ /g, '%s')], serial);
     } catch { /* ignore */ }
+  }
+
+  startScreenRecord(serial, remotePath) {
+    this.stopScreenRecord();
+    this.screenRecordSerial = serial;
+    this.screenRecordRemotePath = remotePath;
+    const args = ['-s', serial, 'shell', 'screenrecord', '--time-limit', '180', remotePath];
+    this.screenRecordProcess = spawn(this.adbPath, args, { stdio: 'ignore' });
+    this.screenRecordProcess.on('exit', () => {
+      this.screenRecordProcess = null;
+      if (this._onScreenRecordExit) this._onScreenRecordExit();
+    });
+    this.screenRecordProcess.on('error', () => {
+      this.screenRecordProcess = null;
+    });
+    return { success: true };
+  }
+
+  stopScreenRecord() {
+    if (this.screenRecordProcess) {
+      const p = this.screenRecordProcess;
+      this.screenRecordProcess = null;
+      try {
+        if (isWin) {
+          execSync(`taskkill /pid ${p.pid} /T /F`, { stdio: 'ignore' });
+        } else {
+          p.kill('SIGINT');
+        }
+      } catch {
+        try { p.kill(); } catch {}
+      }
+    }
+  }
+
+  async stopScreenRecordAndPull(localPath) {
+    const serial = this.screenRecordSerial;
+    const remotePath = this.screenRecordRemotePath;
+    if (!serial || !remotePath) return { success: false, error: '녹화 중이 아닙니다' };
+
+    this.stopScreenRecord();
+
+    await new Promise((r) => setTimeout(r, 1500));
+
+    try {
+      await this._execText(['pull', remotePath, localPath], serial);
+      try { await this._execText(['shell', 'rm', remotePath], serial); } catch {}
+      return { success: true, filePath: localPath };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  isScreenRecording() {
+    return this.screenRecordProcess !== null;
   }
 }
 

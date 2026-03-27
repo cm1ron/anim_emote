@@ -54,5 +54,8 @@
   "devDependencies": {
     "electron": "^41.0.4",
     "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1"
   }
 }

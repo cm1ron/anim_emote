@@ -16,10 +16,7 @@ class ScrcpyManager {
       this.scrcpyPath = bin;
     }
     this.process = null;
-    this.recordProcess = null;
-    this.recordFilePath = null;
     this.onExit = null;
-    this.onRecordExit = null;
   }
 
   start(serial, options = {}) {
@@ -62,47 +59,6 @@ class ScrcpyManager {
 
   isRunning() {
     return this.process !== null && !this.process.killed;
-  }
-
-  startRecording(serial, filePath, options = {}) {
-    this.stopRecording();
-    const args = ['-s', serial, '--record', filePath, '--no-playback'];
-
-    if (options.maxSize) args.push('--max-size', String(options.maxSize));
-    if (options.bitRate) args.push('--video-bit-rate', String(options.bitRate));
-    if (options.maxFps) args.push('--max-fps', String(options.maxFps));
-
-    this.recordFilePath = filePath;
-
-    try {
-      this.recordProcess = spawn(this.scrcpyPath, args, { stdio: 'ignore' });
-      this.recordProcess.on('exit', () => {
-        const savedPath = this.recordFilePath;
-        this.recordProcess = null;
-        this.recordFilePath = null;
-        if (this.onRecordExit) this.onRecordExit(savedPath);
-      });
-      this.recordProcess.on('error', (e) => {
-        this.recordProcess = null;
-        this.recordFilePath = null;
-        if (this.onRecordExit) this.onRecordExit(null, e.message);
-      });
-      return { success: true, filePath };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  }
-
-  stopRecording() {
-    if (this.recordProcess) {
-      this.recordProcess.kill('SIGINT');
-      this.recordProcess = null;
-    }
-    return { success: true };
-  }
-
-  isRecording() {
-    return this.recordProcess !== null && !this.recordProcess.killed;
   }
 }
 

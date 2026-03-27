@@ -38,11 +38,11 @@ contextBridge.exposeInMainWorld('api', {
   startScrcpy: (serial, options) => ipcRenderer.invoke('scrcpy:start', serial, options),
   stopScrcpy: () => ipcRenderer.invoke('scrcpy:stop'),
   isScrcpyRunning: () => ipcRenderer.invoke('scrcpy:is-running'),
-  startRecording: (serial) => ipcRenderer.invoke('scrcpy:start-record', serial),
-  stopRecording: () => ipcRenderer.invoke('scrcpy:stop-record'),
-  isRecording: () => ipcRenderer.invoke('scrcpy:is-recording'),
-  onRecordingStopped: (cb) => {
-    ipcRenderer.on('scrcpy-record-stopped', (_, data) => cb(data));
+  startRecording: (serial) => ipcRenderer.invoke('adb:start-record', serial),
+  stopRecording: (serial) => ipcRenderer.invoke('adb:stop-record', serial),
+  isRecording: () => ipcRenderer.invoke('adb:is-recording'),
+  onRecordingFinished: (cb) => {
+    ipcRenderer.on('screen-record-finished', () => cb());
   },
   screencap: (serial) => ipcRenderer.invoke('adb:screencap', serial),
 
@@ -59,4 +59,11 @@ contextBridge.exposeInMainWorld('api', {
   openFolder: (folderPath) => ipcRenderer.invoke('shell:open-folder', folderPath),
   saveScreenshot: (base64Data) => ipcRenderer.invoke('adb:save-screenshot', base64Data),
   openScreenshotFolder: () => ipcRenderer.invoke('shell:open-screenshot-folder'),
+
+  readLogsDir: (dirPath) => ipcRenderer.invoke('fs:read-logs-dir', dirPath),
+  fetchRecentLog: (serial) => ipcRenderer.invoke('adb:fetch-recent-log', serial),
+  geminiGetApiKey: () => ipcRenderer.invoke('gemini:get-api-key'),
+  geminiSetApiKey: (key) => ipcRenderer.invoke('gemini:set-api-key', key),
+  geminiChat: (message) => ipcRenderer.invoke('gemini:chat', message),
+  geminiReset: () => ipcRenderer.invoke('gemini:reset'),
 });

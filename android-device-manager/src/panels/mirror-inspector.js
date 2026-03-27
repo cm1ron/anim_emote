@@ -16,6 +16,8 @@ const MirrorInspector = {
   lastLogsDir: null,
   scrcpyRunning: false,
   recording: false,
+  recordTimer: null,
+  recordSeconds: 0,
 
   init() {
     document.getElementById('scrcpy-toggle').addEventListener('click', () => this.toggleScrcpy());
@@ -72,17 +74,14 @@ const MirrorInspector = {
       }
     });
 
-    window.api.onRecordingStopped((data) => {
+    window.api.onRecordingFinished(() => {
       if (this.recording) {
+        this.stopRecordTimer();
         this.recording = false;
         const btn = document.getElementById('record-toggle');
         btn.classList.remove('recording');
-        if (data.filePath) {
-          const fileName = data.filePath.split(/[\\/]/).pop();
-          App.toast(`녹화 저장 완료: ${fileName}`, 'success');
-        } else if (data.error) {
-          App.toast(`녹화 실패: ${data.error}`, 'error');
-        }
+        App.toast('녹화 시간 초과 (3분) — 파일 저장 중...', 'info');
+        this.pullRecording();
       }
     });
   },
@@ -92,34 +91,61 @@ const MirrorInspector = {
   async toggleRecording() {
     const btn = document.getElementById('record-toggle');
     if (this.recording) {
-      await window.api.stopRecording();
+      btn.disabled = true;
+      App.toast('녹화 중지 — 파일 저장 중...', 'info');
+      this.stopRecordTimer();
+      const result = await window.api.stopRecording(App.currentDevice);
       this.recording = false;
       btn.classList.remove('recording');
-      App.toast('녹화 중지 — 파일 저장 중...', 'info');
+      btn.disabled = false;
+      if (result.success) {
+        const fileName = result.filePath.split(/[\\/]/).pop();
+        App.toast(`녹화 저장 완료: ${fileName}`, 'success');
+      } else {
+        App.toast(`녹화 저장 실패: ${result.error}`, 'error');
+      }
     } else {
       if (!App.currentDevice) return App.toast('디바이스를 먼저 연결해주세요', 'error');
-      if (!this.scrcpyRunning) {
-        const scrcpyResult = await window.api.startScrcpy(App.currentDevice, {
-          windowTitle: 'Android Mirror',
-          stayAwake: true,
-        });
-        if (scrcpyResult.success) {
-          this.scrcpyRunning = true;
-          const scrcpyBtn = document.getElementById('scrcpy-toggle');
-          scrcpyBtn.textContent = 'scrcpy 중지';
-          scrcpyBtn.classList.remove('btn-primary');
-          scrcpyBtn.classList.add('btn-danger');
-        }
-      }
       const result = await window.api.startRecording(App.currentDevice);
       if (result.success) {
         this.recording = true;
         btn.classList.add('recording');
-        App.toast('녹화 시작', 'success');
+        this.startRecordTimer();
+        App.toast('녹화 시작 (최대 3분)', 'success');
       } else {
         App.toast(`녹화 실패: ${result.error}`, 'error');
       }
     }
+  },
+
+  async pullRecording() {
+    const result = await window.api.stopRecording(App.currentDevice);
+    if (result.success) {
+      const fileName = result.filePath.split(/[\\/]/).pop();
+      App.toast(`녹화 저장 완료: ${fileName}`, 'success');
+    } else {
+      App.toast(`녹화 저장 실패: ${result.error}`, 'error');
+    }
+  },
+
+  startRecordTimer() {
+    this.recordSeconds = 0;
+    const btn = document.getElementById('record-toggle');
+    this.recordTimer = setInterval(() => {
+      this.recordSeconds++;
+      const m = Math.floor(this.recordSeconds / 60);
+      const s = this.recordSeconds % 60;
+      btn.title = `녹화 중 ${m}:${s.toString().padStart(2, '0')} / 3:00`;
+    }, 1000);
+  },
+
+  stopRecordTimer() {
+    if (this.recordTimer) {
+      clearInterval(this.recordTimer);
+      this.recordTimer = null;
+    }
+    this.recordSeconds = 0;
+    document.getElementById('record-toggle').title = '화면 녹화';
   },
 
   // --- scrcpy (고성능 별도 창) ---
@@ -598,7 +624,7 @@ const MirrorInspector = {
 
   onKeyDown(e) {
     if (App.currentPanel !== 'mirror' || !App.currentDevice) return;
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
 
     const keyMap = { Backspace: 4, Home: 3, Escape: 4, Enter: 66 };
     if (keyMap[e.key]) {
