@@ -13,8 +13,10 @@ const DevicePanel = {
 
   async refresh() {
     const container = document.getElementById('device-info-content');
+    const visual = document.getElementById('device-visual');
     if (!App.currentDevice) {
       container.innerHTML = '<p style="color:var(--text-muted)">디바이스를 선택하면 정보가 표시됩니다.</p>';
+      if (visual) visual.innerHTML = '';
       return;
     }
 
@@ -22,9 +24,50 @@ const DevicePanel = {
     try {
       const info = await window.api.getDeviceInfo(App.currentDevice);
       container.innerHTML = this.renderInfo(info);
+      if (visual) visual.innerHTML = this.renderDeviceSvg(info);
     } catch (e) {
       container.innerHTML = `<p style="color:var(--red)">정보 조회 실패: ${e.message}</p>`;
     }
+  },
+
+  _isTablet(model) {
+    if (!model) return false;
+    const m = model.toLowerCase();
+    return m.includes('tab') || m.startsWith('sm-t') || m.startsWith('sm-x');
+  },
+
+  renderDeviceSvg(info) {
+    const isTab = this._isTablet(info.model);
+    const model = info.model || 'Unknown';
+    const android = info.androidVersion || '?';
+    const res = info.resolution || '? x ?';
+    const battery = info.batteryLevel != null ? `${info.batteryLevel}%` : '?';
+    const manufacturer = (info.manufacturer || '').toUpperCase();
+
+    if (isTab) {
+      return `<svg viewBox="0 0 280 200" width="280" height="200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="10" y="10" width="260" height="180" rx="16" fill="#252536" stroke="#89b4fa" stroke-width="2"/>
+        <rect x="22" y="22" width="236" height="156" rx="4" fill="#1e1e2e"/>
+        <circle cx="14" cy="100" r="3" fill="#45475a"/>
+        <text x="140" y="75" text-anchor="middle" fill="#89b4fa" font-size="14" font-weight="600">${manufacturer}</text>
+        <text x="140" y="98" text-anchor="middle" fill="#cdd6f4" font-size="12">${model}</text>
+        <text x="140" y="118" text-anchor="middle" fill="#a6adc8" font-size="11">Android ${android}</text>
+        <text x="140" y="138" text-anchor="middle" fill="#a6adc8" font-size="10">${res}</text>
+        <text x="140" y="156" text-anchor="middle" fill="#a6e3a1" font-size="10">🔋 ${battery}</text>
+      </svg>`;
+    }
+
+    return `<svg viewBox="0 0 160 300" width="160" height="300" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="10" width="140" height="280" rx="20" fill="#252536" stroke="#89b4fa" stroke-width="2"/>
+      <rect x="22" y="40" width="116" height="220" rx="4" fill="#1e1e2e"/>
+      <rect x="60" y="20" width="40" height="6" rx="3" fill="#45475a"/>
+      <circle cx="80" cy="274" r="6" stroke="#45475a" stroke-width="1.5" fill="none"/>
+      <text x="80" y="110" text-anchor="middle" fill="#89b4fa" font-size="13" font-weight="600">${manufacturer}</text>
+      <text x="80" y="135" text-anchor="middle" fill="#cdd6f4" font-size="11">${model}</text>
+      <text x="80" y="158" text-anchor="middle" fill="#a6adc8" font-size="10">Android ${android}</text>
+      <text x="80" y="178" text-anchor="middle" fill="#a6adc8" font-size="9">${res}</text>
+      <text x="80" y="200" text-anchor="middle" fill="#a6e3a1" font-size="10">🔋 ${battery}</text>
+    </svg>`;
   },
 
   setupAppInfoButton() {

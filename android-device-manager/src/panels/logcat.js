@@ -3,6 +3,7 @@ const LogcatPanel = {
   lines: [],
   maxLines: 10000,
   autoScroll: true,
+  crashCount: 0,
 
   init() {
     document.getElementById('logcat-toggle').addEventListener('click', () => this.toggle());
@@ -11,8 +12,89 @@ const LogcatPanel = {
     document.getElementById('logcat-autoscroll').addEventListener('change', (e) => {
       this.autoScroll = e.target.checked;
     });
+    document.getElementById('crash-test').addEventListener('click', () => window.api.crashTest());
+    document.getElementById('crash-open-folder').addEventListener('click', () => window.api.crashOpenFolder());
+    document.getElementById('crash-clear-history').addEventListener('click', () => this.clearCrashHistory());
+    document.getElementById('crash-detail-close').addEventListener('click', () => {
+      document.getElementById('crash-detail-overlay').style.display = 'none';
+    });
 
     window.api.onLogcatLine((line) => this.addLine(line));
+    window.api.onCrashDetected((crash) => this.onCrashDetected(crash));
+    window.api.onCrashSummaryUpdated((data) => this.onCrashSummaryUpdated(data));
+  },
+
+  onCrashDetected(crash) {
+    this.crashCount++;
+    this._updateBadges();
+
+    const typeLabel = { CRASH: 'CRASH', ANR: 'ANR', NATIVE_CRASH: 'NATIVE' };
+    App.toast(`${typeLabel[crash.type] || crash.type} 감지: ${crash.app}`, 'error');
+
+    const list = document.getElementById('crash-list');
+    const empty = list.querySelector('.crash-empty');
+    if (empty) empty.remove();
+
+    const item = document.createElement('div');
+    item.className = 'crash-item';
+    item.dataset.crashTime = crash.time;
+    item.innerHTML = `
+      <div class="crash-item-header">
+        <span class="crash-item-type crash-type-${crash.type.toLowerCase()}">${typeLabel[crash.type] || crash.type}</span>
+        <span class="crash-item-app">${crash.app}</span>
+        <span class="crash-item-time">${crash.timeLocal}</span>
+      </div>
+      <div class="crash-item-summary" id="crash-summary-${crash.time}">
+        <span class="crash-summary-loading">AI 요약 생성 중...</span>
+      </div>
+    `;
+    item.addEventListener('click', () => this.showCrashDetail(crash));
+    list.prepend(item);
+  },
+
+  onCrashSummaryUpdated(data) {
+    const el = document.getElementById(`crash-summary-${data.time}`);
+    if (el) {
+      el.innerHTML = `<span class="crash-summary-text">${data.summary}</span>`;
+    }
+  },
+
+  async showCrashDetail(crash) {
+    const overlay = document.getElementById('crash-detail-overlay');
+    const title = document.getElementById('crash-detail-title');
+    const log = document.getElementById('crash-detail-log');
+
+    title.textContent = `${crash.type} — ${crash.app} (${crash.timeLocal})`;
+
+    if (crash.file) {
+      const result = await window.api.crashReadLog(crash.file);
+      log.textContent = result.success ? result.text : `로그 읽기 실패: ${result.error}`;
+    } else {
+      log.textContent = crash.preview || 'No data';
+    }
+    overlay.style.display = 'flex';
+  },
+
+  async clearCrashHistory() {
+    await window.api.crashClearHistory();
+    this.crashCount = 0;
+    this._updateBadges();
+    document.getElementById('crash-list').innerHTML = '<div class="crash-empty">크래시가 감지되면 여기에 표시됩니다.</div>';
+    App.toast('크래시 기록 초기화', 'info');
+  },
+
+  _updateBadges() {
+    const navBadge = document.getElementById('nav-crash-badge');
+    const panelBadge = document.getElementById('crash-badge');
+    if (this.crashCount > 0) {
+      navBadge.textContent = this.crashCount;
+      navBadge.style.display = '';
+      panelBadge.textContent = this.crashCount;
+      panelBadge.style.display = '';
+    } else {
+      navBadge.style.display = 'none';
+      panelBadge.style.display = 'none';
+    }
   },
 
   async toggle() {

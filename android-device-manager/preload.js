@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 contextBridge.exposeInMainWorld('api', {
   getFilePath: (file) => webUtils.getPathForFile(file),
   getDevices: () => ipcRenderer.invoke('adb:get-devices'),
+  getWifiIp: (serial) => ipcRenderer.invoke('adb:get-wifi-ip', serial),
   pairDevice: (address, code) => ipcRenderer.invoke('adb:pair', address, code),
   connectWireless: (address) => ipcRenderer.invoke('adb:connect-wireless', address),
   disconnectWireless: (address) => ipcRenderer.invoke('adb:disconnect-wireless', address),
@@ -74,4 +75,12 @@ contextBridge.exposeInMainWorld('api', {
   analysisRunTestcase: (type, parsedData) => ipcRenderer.invoke('analysis:run-testcase', type, parsedData),
   analysisSave: (type, content) => ipcRenderer.invoke('analysis:save', type, content),
   analysisOpenFolder: () => ipcRenderer.invoke('analysis:open-folder'),
+
+  onCrashDetected: (cb) => ipcRenderer.on('crash-detected', (_, data) => cb(data)),
+  onCrashSummaryUpdated: (cb) => ipcRenderer.on('crash-summary-updated', (_, data) => cb(data)),
+  crashGetHistory: () => ipcRenderer.invoke('crash:get-history'),
+  crashClearHistory: () => ipcRenderer.invoke('crash:clear-history'),
+  crashOpenFolder: () => ipcRenderer.invoke('crash:open-folder'),
+  crashReadLog: (filePath) => ipcRenderer.invoke('crash:read-log', filePath),
+  crashTest: () => ipcRenderer.invoke('crash:test'),
 });

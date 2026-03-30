@@ -6,10 +6,13 @@ const ScrcpyManager = require('./lib/scrcpy-manager');
 const DeviceMonitor = require('./lib/device-monitor');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+const CrashMonitor = require('./lib/crash-monitor');
+
 let mainWindow;
 let adb;
 let scrcpyMgr;
 let deviceMonitor;
+let crashMonitor;
 let geminiChat = null;
 
 const CONFIG_DIR = path.join(app.getPath('userData'), 'config');
@@ -72,6 +75,29 @@ function createWindow() {
   }
 }
 
+function buildCrashSummaryPrompt(crash) {
+  return `Android 크래시 로그를 분석하여 사용자가 어떤 동작을 했을 때 크래시가 발생했는지 3단계로 요약하라.
+
+형식 (반드시 이 형식만 출력):
+1. [화면/상황] 어디에 있었는지
+2. [동작] 무엇을 했는지 (버튼명, 메서드명, 리소스ID 등 포함)
+3. [에러] 어떤 에러가 발생했는지 (Exception 타입 + 원인)
+
+규칙:
+- 반드시 1. 2. 3. 번호 매긴 3줄만 출력
+- 각 줄은 15자~40자 이내 한국어
+- Activity/Fragment 이름은 한국어로 의역 (예: FriendListActivity → 친구 목록 화면)
+- 스택트레이스에서 클릭 핸들러, 버튼, 리소스 ID 등이 보이면 반드시 포함
+- 불필요한 서론/설명 없이 3줄만 출력
+
+크래시 타입: ${crash.type}
+앱: ${crash.app}
+현재 Activity: ${crash.activity}
+
+스택트레이스:
+${crash.stacktrace.slice(0, 3000)}`;
+}
+
 function setupIpcHandlers() {
   adb = new AdbManager();
   const fs = require('fs');
@@ -95,9 +121,44 @@ function setupIpcHandlers() {
   scrcpyMgr = new ScrcpyManager(scrcpyDir);
   deviceMonitor = new DeviceMonitor(adb);
 
+  const crashDir = path.join(__dirname, 'crashes');
+  crashMonitor = new CrashMonitor(adb.adbPath, crashDir);
+
+  crashMonitor.on('crash', async (crash) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('crash-detected', crash);
+    }
+
+    const cfg = loadConfig();
+    if (cfg.geminiApiKey && crash.stacktrace) {
+      try {
+        const genAI = new GoogleGenerativeAI(cfg.geminiApiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const prompt = buildCrashSummaryPrompt(crash);
+
+        const result = await model.generateContent(prompt);
+        const summary = result.response.text().trim();
+        crash.summary = summary;
+
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('crash-summary-updated', {
+            time: crash.time,
+            summary,
+          });
+        }
+      } catch {}
+    }
+  });
+
   deviceMonitor.on('devices-changed', (devices) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('devices-changed', devices);
+      const connected = devices.find((d) => d.status === 'device');
+      if (connected && !crashMonitor.isRunning()) {
+        crashMonitor.start(connected.serial);
+      } else if (!connected) {
+        crashMonitor.stop();
+      }
     }
   });
 
@@ -201,6 +262,7 @@ function setupIpcHandlers() {
 
   ipcMain.handle('adb:dump-ui', (_, serial) => adb.dumpUi(serial));
   ipcMain.handle('adb:running-app-info', (_, serial, pkg) => adb.getRunningAppInfo(serial, pkg));
+  ipcMain.handle('adb:get-wifi-ip', (_, serial) => adb.getWifiIp(serial));
   ipcMain.handle('adb:pair', (_, address, code) => adb.pair(address, code));
   ipcMain.handle('adb:connect-wireless', (_, address) => adb.connectWireless(address));
   ipcMain.handle('adb:disconnect-wireless', (_, address) => adb.disconnectWireless(address));
@@ -637,6 +699,70 @@ function setupIpcHandlers() {
     fs.mkdirSync(dir, { recursive: true });
     shell.openPath(dir);
   });
+
+  // --- Crash Monitor ---
+  ipcMain.handle('crash:get-history', () => crashMonitor.getHistory());
+  ipcMain.handle('crash:clear-history', () => { crashMonitor.clearHistory(); return { success: true }; });
+  ipcMain.handle('crash:open-folder', () => {
+    const { shell } = require('electron');
+    fs.mkdirSync(crashDir, { recursive: true });
+    shell.openPath(crashDir);
+  });
+  ipcMain.handle('crash:read-log', async (_, filePath) => {
+    try {
+      return { success: true, text: fs.readFileSync(filePath, 'utf-8') };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+
+  ipcMain.handle('crash:test', async () => {
+    const now = new Date();
+    const dummyStacktrace = `03-31 01:20:15.123 E/AndroidRuntime(12345): FATAL EXCEPTION: main
+03-31 01:20:15.123 E/AndroidRuntime(12345): Process: com.example.socialapp, PID: 12345
+03-31 01:20:15.123 E/AndroidRuntime(12345): java.lang.NullPointerException: Attempt to invoke virtual method 'void android.widget.TextView.setText(java.lang.CharSequence)' on a null object reference
+03-31 01:20:15.123 E/AndroidRuntime(12345):     at com.example.socialapp.ui.friend.FriendListFragment.onFriendButtonClick(FriendListFragment.java:142)
+03-31 01:20:15.123 E/AndroidRuntime(12345):     at com.example.socialapp.ui.friend.FriendListAdapter$ViewHolder.lambda$bind$0(FriendListAdapter.java:87)
+03-31 01:20:15.123 E/AndroidRuntime(12345):     at android.view.View.performClick(View.java:7448)
+03-31 01:20:15.123 E/AndroidRuntime(12345):     at android.view.View.access$3600(View.java:810)
+03-31 01:20:15.123 E/AndroidRuntime(12345):     at android.widget.Button.performClick(Button.java:187)
+03-31 01:20:15.123 E/AndroidRuntime(12345):     at android.os.Handler.handleCallback(Handler.java:938)
+03-31 01:20:15.123 E/AndroidRuntime(12345):     at android.os.Looper.loop(Looper.java:223)
+03-31 01:20:15.123 E/AndroidRuntime(12345):     at android.app.ActivityThread.main(ActivityThread.java:7656)`;
+
+    const crash = {
+      time: now.toISOString(),
+      timeLocal: `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`,
+      type: 'CRASH',
+      app: 'com.example.socialapp',
+      activity: 'com.example.socialapp/.ui.friend.FriendListActivity',
+      preview: dummyStacktrace.split('\n').slice(0, 5).join('\n'),
+      stacktrace: dummyStacktrace,
+      file: null,
+      summary: null,
+    };
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('crash-detected', crash);
+    }
+
+    const cfg = loadConfig();
+    if (cfg.geminiApiKey) {
+      try {
+        const genAI = new GoogleGenerativeAI(cfg.geminiApiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const prompt = buildCrashSummaryPrompt(crash);
+        const result = await model.generateContent(prompt);
+        const summary = result.response.text().trim();
+        crash.summary = summary;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('crash-summary-updated', { time: crash.time, summary });
+        }
+      } catch {}
+    }
+
+    return { success: true };
+  });
 }
 
 app.whenReady().then(() => {
@@ -651,6 +777,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   deviceMonitor.stop();
+  crashMonitor.stop();
   adb.stopLogcat();
   adb.stopScreenRecord();
   scrcpyMgr.stop();

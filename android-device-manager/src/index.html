@@ -11,22 +11,22 @@
     <button class="nav-btn active" data-panel="device" title="디바이스 정보">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
     </button>
-    <button class="nav-btn" data-panel="apps" title="앱 관리">
+    <button class="nav-btn" data-panel="apps" title="앱 설치">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
     </button>
-    <button class="nav-btn" data-panel="logcat" title="Logcat">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    <button class="nav-btn" data-panel="analysis" title="기능 분석">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="14" x2="8" y2="10"/><line x1="11" y1="14" x2="11" y2="8"/><line x1="14" y1="14" x2="14" y2="11"/></svg>
     </button>
-    <div class="nav-separator"></div>
-    <button class="nav-btn" data-panel="files" title="파일 매니저">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-    </button>
-    <button class="nav-btn" data-panel="mirror" title="미러링 & Inspector">
+    <button class="nav-btn" data-panel="mirror" title="모니터링">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><circle cx="17" cy="7" r="3" fill="none"/><line x1="19.5" y1="9.5" x2="21" y2="11"/></svg>
     </button>
-    <div class="nav-separator"></div>
-    <button class="nav-btn" data-panel="analysis" title="QA 분석">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>
+    <button class="nav-btn" data-panel="logcat" title="Logcat" style="position:relative">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <span class="nav-crash-badge" id="nav-crash-badge" style="display:none">0</span>
+    </button>
+    <div style="flex:1"></div>
+    <button class="nav-btn" data-panel="notice" title="공지사항">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="14"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg>
     </button>
   </nav>
 
@@ -48,6 +48,7 @@
           설정 → 개발자 옵션 → 무선 디버깅 → 페어링 코드로 기기 페어링
         </p>
         <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn btn-sm btn-accent" id="wireless-auto-ip" style="width:100%">📡 디바이스 IP 자동 입력</button>
           <div>
             <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">IP:Port (페어링용)</label>
             <input class="input" id="pair-address" placeholder="예: 192.168.0.10:37123">
@@ -73,8 +74,12 @@
       <!-- Device Panel -->
       <div class="panel active" id="panel-device">
         <h2 class="panel-title">디바이스 정보</h2>
-        <div id="device-info-content">
-          <p style="color:var(--text-muted)">디바이스를 선택하면 정보가 표시됩니다.</p>
+        <div class="device-layout">
+          <div class="device-info-side" id="device-info-content">
+            <p style="color:var(--text-muted)">디바이스를 선택하면 정보가 표시됩니다.</p>
+          </div>
+          <div class="device-visual-side" id="device-visual">
+          </div>
         </div>
       </div>
 
@@ -114,6 +119,28 @@
             <span class="badge" id="logcat-count">0 lines</span>
           </div>
           <div class="logcat-output" id="logcat-output"></div>
+        </div>
+        <div class="crash-history" id="crash-history">
+          <div class="crash-history-header">
+            <span class="crash-history-title">크래시 감지 <span class="crash-badge" id="crash-badge" style="display:none">0</span></span>
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-sm" id="crash-test" title="테스트용 더미 크래시">테스트</button>
+              <button class="btn btn-sm" id="crash-open-folder">폴더</button>
+              <button class="btn btn-sm" id="crash-clear-history">초기화</button>
+            </div>
+          </div>
+          <div class="crash-list" id="crash-list">
+            <div class="crash-empty">크래시가 감지되면 여기에 표시됩니다.</div>
+          </div>
+        </div>
+        <div class="crash-detail-overlay" id="crash-detail-overlay" style="display:none">
+          <div class="crash-detail-box">
+            <div class="crash-detail-header">
+              <span id="crash-detail-title">크래시 상세</span>
+              <button class="btn btn-sm" id="crash-detail-close">닫기</button>
+            </div>
+            <pre class="crash-detail-log" id="crash-detail-log"></pre>
+          </div>
         </div>
       </div>
 
@@ -242,7 +269,7 @@
       </div>
       <!-- QA Analysis Panel -->
       <div class="panel" id="panel-analysis">
-        <h2 class="panel-title">QA 분석</h2>
+        <h2 class="panel-title">기능 분석</h2>
         <div class="analysis-layout">
           <div class="analysis-left">
             <div class="analysis-input-row">
@@ -284,6 +311,78 @@
             </div>
             <div class="analysis-result" id="analysis-result-testcase" style="display:none">
               <div class="analysis-placeholder"><p>파일을 추가하고 분석 버튼을 눌러주세요.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Notice Panel -->
+      <div class="panel" id="panel-notice">
+        <h2 class="panel-title">공지사항</h2>
+        <div class="notice-content">
+          <div class="notice-section">
+            <h3 class="notice-section-title">📋 TODO (향후 추가 예정)</h3>
+            <div class="notice-list">
+              <div class="notice-item">
+                <span class="notice-tag todo">예정</span>
+                <span>Slack 크래시 알림 연동 (Webhook으로 자동 전송)</span>
+              </div>
+              <div class="notice-item">
+                <span class="notice-tag todo">예정</span>
+                <span>TC 실행 체크리스트 (Pass/Fail/Skip + 결과 내보내기)</span>
+              </div>
+              <div class="notice-item">
+                <span class="notice-tag todo">예정</span>
+                <span>퍼포먼스 모니터 (CPU/메모리/배터리 실시간 그래프)</span>
+              </div>
+              <div class="notice-item">
+                <span class="notice-tag todo">예정</span>
+                <span>원클릭 버그 리포트 (스크린샷+로그+디바이스 정보 자동 수집)</span>
+              </div>
+              <div class="notice-item">
+                <span class="notice-tag todo">예정</span>
+                <span>Monkey 자동 스트레스 테스트</span>
+              </div>
+              <div class="notice-item">
+                <span class="notice-tag todo">예정</span>
+                <span>다중 디바이스 비교 (동시 설치, 스크린샷 비교)</span>
+              </div>
+              <div class="notice-item">
+                <span class="notice-tag todo">예정</span>
+                <span>Windows exe 빌드 시 ADB/scrcpy 바이너리 포함 (별도 설치 불필요하게)</span>
+              </div>
+            </div>
+          </div>
+          <div class="notice-section">
+            <h3 class="notice-section-title">📡 무선 연결 방법</h3>
+            <div class="notice-guide">
+              <p><strong>방법 1: USB 자동 전환 (권장)</strong></p>
+              <ol>
+                <li>USB로 디바이스 연결</li>
+                <li>앱이 자동으로 무선 모드(5555) 전환</li>
+                <li>USB 분리해도 무선 유지</li>
+                <li>재부팅 시 USB 다시 연결 필요</li>
+              </ol>
+              <p><strong>방법 2: 수동 페어링</strong></p>
+              <ol>
+                <li>디바이스: 설정 → 개발자 옵션 → 무선 디버깅 ON</li>
+                <li>"페어링 코드로 기기 페어링" 터치</li>
+                <li>앱 상단 "무선 연결" 클릭 → "디바이스 IP 자동 입력" 클릭</li>
+                <li>페어링 주소에 포트 추가, 코드 6자리 입력 → 페어링</li>
+                <li>연결 주소는 IP:5555 자동 입력됨 → 연결</li>
+              </ol>
+            </div>
+          </div>
+          <div class="notice-section">
+            <h3 class="notice-section-title">🤖 Gemini API 키 등록 방법</h3>
+            <div class="notice-guide">
+              <ol>
+                <li><a href="https://aistudio.google.com/apikey" style="color:#89b4fa">Google AI Studio</a> 접속</li>
+                <li>Google 계정으로 로그인</li>
+                <li>"Create API Key" 클릭 → 키 복사</li>
+                <li>앱의 모니터링 탭 → AI 어시스턴트 → ⚙ 버튼 → 키 입력</li>
+                <li>기능 분석과 AI 챗 모두 이 키로 동작</li>
+              </ol>
+              <p style="color:var(--text-muted);font-size:11px;margin-top:8px">* 무료 플랜: 분당 15회 / 일 1,500회 요청 가능</p>
             </div>
           </div>
         </div>
