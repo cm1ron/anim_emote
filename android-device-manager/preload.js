@@ -66,4 +66,12 @@ contextBridge.exposeInMainWorld('api', {
   geminiSetApiKey: (key) => ipcRenderer.invoke('gemini:set-api-key', key),
   geminiChat: (message) => ipcRenderer.invoke('gemini:chat', message),
   geminiReset: () => ipcRenderer.invoke('gemini:reset'),
+
+  selectFolder: () => ipcRenderer.invoke('dialog:select-folder'),
+  selectFigmaFiles: () => ipcRenderer.invoke('dialog:select-figma-files'),
+  analysisParseFiles: (filePaths) => ipcRenderer.invoke('analysis:parse-files', filePaths),
+  analysisRun: (type, parsedData) => ipcRenderer.invoke('analysis:run', type, parsedData),
+  analysisRunTestcase: (type, parsedData) => ipcRenderer.invoke('analysis:run-testcase', type, parsedData),
+  analysisSave: (type, content) => ipcRenderer.invoke('analysis:save', type, content),
+  analysisOpenFolder: () => ipcRenderer.invoke('analysis:open-folder'),
 });
