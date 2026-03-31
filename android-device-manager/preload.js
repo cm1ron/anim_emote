@@ -3,7 +3,6 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 contextBridge.exposeInMainWorld('api', {
   getFilePath: (file) => webUtils.getPathForFile(file),
   getDevices: () => ipcRenderer.invoke('adb:get-devices'),
-  getWifiIp: (serial) => ipcRenderer.invoke('adb:get-wifi-ip', serial),
   pairDevice: (address, code) => ipcRenderer.invoke('adb:pair', address, code),
   connectWireless: (address) => ipcRenderer.invoke('adb:connect-wireless', address),
   disconnectWireless: (address) => ipcRenderer.invoke('adb:disconnect-wireless', address),
@@ -49,6 +48,7 @@ contextBridge.exposeInMainWorld('api', {
 
   dumpUi: (serial) => ipcRenderer.invoke('adb:dump-ui', serial),
   getRunningAppInfo: (serial, pkg) => ipcRenderer.invoke('adb:running-app-info', serial, pkg),
+  getForegroundPkg: (serial) => ipcRenderer.invoke('adb:foreground-pkg', serial),
   inputTap: (serial, x, y) => ipcRenderer.invoke('adb:input-tap', serial, x, y),
   inputSwipe: (serial, x1, y1, x2, y2, dur) => ipcRenderer.invoke('adb:input-swipe', serial, x1, y1, x2, y2, dur),
   inputKey: (serial, keycode) => ipcRenderer.invoke('adb:input-key', serial, keycode),
@@ -67,20 +67,4 @@ contextBridge.exposeInMainWorld('api', {
   geminiSetApiKey: (key) => ipcRenderer.invoke('gemini:set-api-key', key),
   geminiChat: (message) => ipcRenderer.invoke('gemini:chat', message),
   geminiReset: () => ipcRenderer.invoke('gemini:reset'),
-
-  selectFolder: () => ipcRenderer.invoke('dialog:select-folder'),
-  selectFigmaFiles: () => ipcRenderer.invoke('dialog:select-figma-files'),
-  analysisParseFiles: (filePaths) => ipcRenderer.invoke('analysis:parse-files', filePaths),
-  analysisRun: (type, parsedData) => ipcRenderer.invoke('analysis:run', type, parsedData),
-  analysisRunTestcase: (type, parsedData) => ipcRenderer.invoke('analysis:run-testcase', type, parsedData),
-  analysisSave: (type, content) => ipcRenderer.invoke('analysis:save', type, content),
-  analysisOpenFolder: () => ipcRenderer.invoke('analysis:open-folder'),
-
-  onCrashDetected: (cb) => ipcRenderer.on('crash-detected', (_, data) => cb(data)),
-  onCrashSummaryUpdated: (cb) => ipcRenderer.on('crash-summary-updated', (_, data) => cb(data)),
-  crashGetHistory: () => ipcRenderer.invoke('crash:get-history'),
-  crashClearHistory: () => ipcRenderer.invoke('crash:clear-history'),
-  crashOpenFolder: () => ipcRenderer.invoke('crash:open-folder'),
-  crashReadLog: (filePath) => ipcRenderer.invoke('crash:read-log', filePath),
-  crashTest: () => ipcRenderer.invoke('crash:test'),
 });

@@ -41,6 +41,10 @@ const DevicePanel = {
 
   async detectPkg() {
     if (!App.currentDevice) return null;
+    try {
+      const fg = await window.api.getForegroundPkg(App.currentDevice);
+      if (fg && APP_PKGS.includes(fg)) return fg;
+    } catch {}
     const pkgs = await window.api.listPackages(App.currentDevice);
     const names = pkgs.map(p => p.name);
     for (const candidate of APP_PKGS) {

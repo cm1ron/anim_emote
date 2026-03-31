@@ -117,7 +117,7 @@ class AdbManager {
 
   async installApk(serial, apkPath) {
     try {
-      const output = await this._execText(['install', '-r', '-d', apkPath], serial);
+      const output = await this._execText(['install', '-r', '-d', '--user', '0', apkPath], serial);
       return { success: output.includes('Success'), output: output.trim() };
     } catch (e) {
       return { success: false, output: e.message };
@@ -153,6 +153,16 @@ class AdbManager {
       return m ? m[1].trim() : '';
     } catch {
       return '';
+    }
+  }
+
+  async getForegroundPkg(serial) {
+    try {
+      const out = await this._execText(['shell', 'dumpsys', 'window', 'displays'], serial);
+      const m = out.match(/mCurrentFocus.*?\s([a-zA-Z0-9_.]+)\//);
+      return m ? m[1] : null;
+    } catch {
+      return null;
     }
   }
 
@@ -203,7 +213,7 @@ class AdbManager {
 
   async uninstallPackage(serial, pkg) {
     try {
-      const output = await this._execText(['uninstall', pkg], serial);
+      const output = await this._execText(['uninstall', '--user', '0', pkg], serial);
       return { success: output.includes('Success'), output: output.trim() };
     } catch (e) {
       return { success: false, output: e.message };

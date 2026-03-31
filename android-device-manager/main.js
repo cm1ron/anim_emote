@@ -6,13 +6,10 @@ const ScrcpyManager = require('./lib/scrcpy-manager');
 const DeviceMonitor = require('./lib/device-monitor');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const CrashMonitor = require('./lib/crash-monitor');
-
 let mainWindow;
 let adb;
 let scrcpyMgr;
 let deviceMonitor;
-let crashMonitor;
 let geminiChat = null;
 
 const CONFIG_DIR = path.join(app.getPath('userData'), 'config');
@@ -75,29 +72,6 @@ function createWindow() {
   }
 }
 
-function buildCrashSummaryPrompt(crash) {
-  return `Android 크래시 로그를 분석하여 사용자가 어떤 동작을 했을 때 크래시가 발생했는지 3단계로 요약하라.
-
-형식 (반드시 이 형식만 출력):
-1. [화면/상황] 어디에 있었는지
-2. [동작] 무엇을 했는지 (버튼명, 메서드명, 리소스ID 등 포함)
-3. [에러] 어떤 에러가 발생했는지 (Exception 타입 + 원인)
-
-규칙:
-- 반드시 1. 2. 3. 번호 매긴 3줄만 출력
-- 각 줄은 15자~40자 이내 한국어
-- Activity/Fragment 이름은 한국어로 의역 (예: FriendListActivity → 친구 목록 화면)
-- 스택트레이스에서 클릭 핸들러, 버튼, 리소스 ID 등이 보이면 반드시 포함
-- 불필요한 서론/설명 없이 3줄만 출력
-
-크래시 타입: ${crash.type}
-앱: ${crash.app}
-현재 Activity: ${crash.activity}
-
-스택트레이스:
-${crash.stacktrace.slice(0, 3000)}`;
-}
-
 function setupIpcHandlers() {
   adb = new AdbManager();
   const fs = require('fs');
@@ -121,44 +95,9 @@ function setupIpcHandlers() {
   scrcpyMgr = new ScrcpyManager(scrcpyDir);
   deviceMonitor = new DeviceMonitor(adb);
 
-  const crashDir = path.join(__dirname, 'crashes');
-  crashMonitor = new CrashMonitor(adb.adbPath, crashDir);
-
-  crashMonitor.on('crash', async (crash) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('crash-detected', crash);
-    }
-
-    const cfg = loadConfig();
-    if (cfg.geminiApiKey && crash.stacktrace) {
-      try {
-        const genAI = new GoogleGenerativeAI(cfg.geminiApiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-        const prompt = buildCrashSummaryPrompt(crash);
-
-        const result = await model.generateContent(prompt);
-        const summary = result.response.text().trim();
-        crash.summary = summary;
-
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('crash-summary-updated', {
-            time: crash.time,
-            summary,
-          });
-        }
-      } catch {}
-    }
-  });
-
   deviceMonitor.on('devices-changed', (devices) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('devices-changed', devices);
-      const connected = devices.find((d) => d.status === 'device');
-      if (connected && !crashMonitor.isRunning()) {
-        crashMonitor.start(connected.serial);
-      } else if (!connected) {
-        crashMonitor.stop();
-      }
     }
   });
 
@@ -182,11 +121,7 @@ function setupIpcHandlers() {
     });
     if (result.canceled || !result.filePaths.length) return { success: false, canceled: true };
     try { await adb.forceStop(serial, pkgName); } catch {}
-    const uninstResult = await adb.uninstallPackage(serial, pkgName);
-    if (!uninstResult.success) {
-      return { success: false, output: `삭제 실패: ${uninstResult.output}\n패키지명(${pkgName})이 맞는지 확인해주세요.` };
-    }
-    await new Promise((r) => setTimeout(r, 1500));
+    try { await adb.uninstallPackage(serial, pkgName); } catch {}
     return adb.installApk(serial, result.filePaths[0]);
   });
 
@@ -262,7 +197,7 @@ function setupIpcHandlers() {
 
   ipcMain.handle('adb:dump-ui', (_, serial) => adb.dumpUi(serial));
   ipcMain.handle('adb:running-app-info', (_, serial, pkg) => adb.getRunningAppInfo(serial, pkg));
-  ipcMain.handle('adb:get-wifi-ip', (_, serial) => adb.getWifiIp(serial));
+  ipcMain.handle('adb:foreground-pkg', (_, serial) => adb.getForegroundPkg(serial));
   ipcMain.handle('adb:pair', (_, address, code) => adb.pair(address, code));
   ipcMain.handle('adb:connect-wireless', (_, address) => adb.connectWireless(address));
   ipcMain.handle('adb:disconnect-wireless', (_, address) => adb.disconnectWireless(address));
@@ -416,353 +351,6 @@ function setupIpcHandlers() {
     if (cfg.geminiApiKey) initGemini(cfg.geminiApiKey);
     return { success: true };
   });
-
-  // --- PRD/피그마 분석 ---
-  const { parseFiles } = require('./lib/pdf-parser');
-  const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.webp'];
-  const ALL_EXTS = ['.pdf', '.md', '.txt', ...IMAGE_EXTS];
-
-  ipcMain.handle('dialog:select-folder', async () => {
-    const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
-    if (result.canceled || !result.filePaths.length) return [];
-    const dir = result.filePaths[0];
-    const entries = fs.readdirSync(dir);
-    return entries
-      .filter((name) => ALL_EXTS.includes(path.extname(name).toLowerCase()))
-      .map((name) => ({ name, path: path.join(dir, name) }));
-  });
-
-  ipcMain.handle('dialog:select-figma-files', async () => {
-    const result = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openFile', 'openDirectory', 'multiSelections'],
-      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
-    });
-    if (result.canceled || !result.filePaths.length) return [];
-    const files = [];
-    for (const p of result.filePaths) {
-      const stat = fs.statSync(p);
-      if (stat.isDirectory()) {
-        const entries = fs.readdirSync(p);
-        for (const name of entries) {
-          if (IMAGE_EXTS.includes(path.extname(name).toLowerCase())) {
-            files.push({ name, path: path.join(p, name) });
-          }
-        }
-      } else if (IMAGE_EXTS.includes(path.extname(p).toLowerCase())) {
-        files.push({ name: path.basename(p), path: p });
-      }
-    }
-    return files;
-  });
-
-  ipcMain.handle('analysis:parse-files', async (_, filePaths) => {
-    try {
-      return { success: true, ...(await parseFiles(filePaths)) };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  });
-
-  const summaryPrompts = {
-    prd: `PRD 문서를 분석하여 기능 목록을 우선순위별 표로 정리하라.
-
-| 우선순위 | 기능명 | 동작 설명 |
-|---------|--------|----------|
-| P0 | 기능 이름 | 어떻게 동작하는지 한 줄 설명 |
-| P1 | ... | ... |
-| P2 | ... | ... |
-
-- P0: 핵심 기능 (없으면 서비스 불가)
-- P1: 주요 기능 (기본 사용에 필요)
-- P2: 부가 기능 (있으면 좋은 것)
-- 모든 기능을 빠짐없이 나열하라
-- 불필요한 서론/설명 없이 표만 출력
-- 한국어로 작성`,
-
-    figma: `피그마 스크린샷을 분석하여 QA 관점에서 UI를 점검하라.
-
-## 화면 목록
-| 화면명 | 주요 요소 | 설명 |
-|--------|---------|------|
-| ... | 버튼, 입력창 등 | 화면이 어떤 기능을 담당하는지 |
-
-## UI 점검 항목
-| 심각도 | 화면 | 항목 | 상태 | 비고 |
-|--------|------|------|------|------|
-| Critical | ... | 필수 요소 누락 | ... | ... |
-| Major | ... | 레이아웃/정렬 | ... | ... |
-| Minor | ... | 텍스트/아이콘 | ... | ... |
-
-규칙:
-- 각 스크린샷의 화면 구성을 파악하고 QA 포인트 도출
-- 불필요한 서론/설명 없이 표만 출력
-- 한국어로 작성`,
-
-    compare: `PRD 문서와 피그마 스크린샷을 비교하여 표로 정리하라.
-
-## 일치 항목
-| 항목 | PRD 요구사항 | 피그마 반영 상태 |
-|------|------------|---------------|
-
-## 누락/불일치
-| 심각도 | 항목 | PRD 내용 | 피그마 상태 | 비고 |
-|--------|------|---------|-----------|------|
-| Critical | ... | ... | 누락 | ... |
-| Major | ... | ... | 불일치 | ... |
-| Minor | ... | ... | ... | ... |
-
-규칙:
-- 심각도: Critical / Major / Minor
-- 모든 PRD 요구사항을 빠짐없이 비교하라
-- 불필요한 서론/설명 없이 표만 출력
-- 한국어로 작성`,
-  };
-
-  const testcasePrompts = {
-    prd: `PRD 문서를 기반으로 QA 테스트케이스를 생성하라.
-
-반드시 아래 4개 카테고리 헤더를 포함하고 각 카테고리 아래에 표를 작성하라:
-
-## 필수동작
-| TC | 케이스명 | 단계 | 기대결과 |
-|----|---------|------|---------|
-| TC-1 | ... | 1. ...\\n2. ... | ... |
-
-## 기본동작
-| TC | 케이스명 | 단계 | 기대결과 |
-|----|---------|------|---------|
-| TC-N | ... | 1. ...\\n2. ... | ... |
-
-## UI
-| TC | 케이스명 | 단계 | 기대결과 |
-|----|---------|------|---------|
-| TC-N | ... | 1. ...\\n2. ... | ... |
-
-## 엣지케이스
-| TC | 케이스명 | 단계 | 기대결과 |
-|----|---------|------|---------|
-| TC-N | ... | 1. ...\\n2. ... | ... |
-
-규칙:
-- 반드시 "## 필수동작", "## 기본동작", "## UI", "## 엣지케이스" 4개 헤더를 모두 출력하라
-- TC 번호는 전체 통합 번호 (TC-1, TC-2, ... TC-N)
-- 각 카테고리당 최소 7개 이상의 TC를 생성하라
-- 전체 TC 수가 최소 30개 이상이어야 한다
-- 정상 케이스, 비정상 입력, 경계값, 반복 동작, 권한/상태 변경 등 다양한 관점
-- 단계는 번호 매겨 간결하게, 기대결과는 한 줄로
-- 불필요한 서론/설명 없이 카테고리별 표만 출력
-- 한국어로 작성`,
-
-    figma: `피그마 스크린샷을 기반으로 QA 테스트케이스를 생성하라.
-
-반드시 아래 4개 카테고리 헤더를 포함하고 각 카테고리 아래에 표를 작성하라:
-
-## 필수동작
-| TC | 케이스명 | 단계 | 기대결과 |
-|----|---------|------|---------|
-| TC-1 | ... | 1. ...\\n2. ... | ... |
-
-## 기본동작
-| TC | 케이스명 | 단계 | 기대결과 |
-|----|---------|------|---------|
-| TC-N | ... | 1. ...\\n2. ... | ... |
-
-## UI
-| TC | 케이스명 | 단계 | 기대결과 |
-|----|---------|------|---------|
-| TC-N | ... | 1. ...\\n2. ... | ... |
-
-## 엣지케이스
-| TC | 케이스명 | 단계 | 기대결과 |
-|----|---------|------|---------|
-| TC-N | ... | 1. ...\\n2. ... | ... |
-
-규칙:
-- 반드시 "## 필수동작", "## 기본동작", "## UI", "## 엣지케이스" 4개 헤더를 모두 출력하라
-- TC 번호는 전체 통합 번호 (TC-1, TC-2, ... TC-N)
-- 각 카테고리당 최소 5개 이상의 TC를 생성하라
-- 전체 TC 수가 최소 25개 이상이어야 한다
-- 화면 전환, 터치 영역, 스크롤, 가로/세로 모드, 다크모드, 접근성 등 다양한 관점
-- 단계는 번호 매겨 간결하게, 기대결과는 한 줄로
-- 불필요한 서론/설명 없이 카테고리별 표만 출력
-- 한국어로 작성`,
-
-    compare: `PRD 문서와 피그마 스크린샷의 불일치를 기반으로 QA 테스트케이스를 생성하라.
-
-반드시 아래 4개 카테고리 헤더를 포함하고 각 카테고리 아래에 표를 작성하라:
-
-## 필수동작
-| TC | 케이스명 | 단계 | 기대결과 |
-|----|---------|------|---------|
-| TC-1 | ... | 1. ...\\n2. ... | ... |
-
-## 기본동작
-| TC | 케이스명 | 단계 | 기대결과 |
-|----|---------|------|---------|
-| TC-N | ... | 1. ...\\n2. ... | ... |
-
-## UI
-| TC | 케이스명 | 단계 | 기대결과 |
-|----|---------|------|---------|
-| TC-N | ... | 1. ...\\n2. ... | ... |
-
-## 엣지케이스
-| TC | 케이스명 | 단계 | 기대결과 |
-|----|---------|------|---------|
-| TC-N | ... | 1. ...\\n2. ... | ... |
-
-규칙:
-- 반드시 "## 필수동작", "## 기본동작", "## UI", "## 엣지케이스" 4개 헤더를 모두 출력하라
-- PRD 요구사항과 피그마 스크린샷 간 불일치/누락 항목 중심으로 TC 생성
-- TC 번호는 전체 통합 번호 (TC-1, TC-2, ... TC-N)
-- 각 카테고리당 최소 5개 이상의 TC를 생성하라
-- 전체 TC 수가 최소 25개 이상이어야 한다
-- 단계는 번호 매겨 간결하게, 기대결과는 한 줄로
-- 불필요한 서론/설명 없이 카테고리별 표만 출력
-- 한국어로 작성`,
-  };
-
-  function buildParts(parsedData) {
-    const parts = [];
-    if (parsedData.texts && parsedData.texts.length) {
-      const combinedText = parsedData.texts.map((t) => `=== ${t.name} ===\n${t.content}`).join('\n\n');
-      parts.push({ text: combinedText });
-    }
-    if (parsedData.images && parsedData.images.length) {
-      for (const img of parsedData.images) {
-        parts.push({ text: `[피그마 스크린샷: ${img.name}]` });
-        parts.push({ inlineData: { mimeType: img.mimeType, data: img.data } });
-      }
-    }
-    if (parts.length) parts.push({ text: '위 자료를 분석해주세요.' });
-    return parts;
-  }
-
-  ipcMain.handle('analysis:run', async (_, type, parsedData) => {
-    const cfg = loadConfig();
-    if (!cfg.geminiApiKey) return { success: false, error: 'API 키가 설정되지 않았습니다.' };
-
-    const prompt = summaryPrompts[type];
-    if (!prompt) return { success: false, error: `알 수 없는 분석 유형: ${type}` };
-
-    try {
-      const genAI = new GoogleGenerativeAI(cfg.geminiApiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', systemInstruction: prompt });
-      const parts = buildParts(parsedData);
-      if (!parts.length) return { success: false, error: '분석할 파일이 없습니다.' };
-
-      const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
-      return { success: true, text: result.response.text() };
-    } catch (e) {
-      return { success: false, error: e.message || String(e) };
-    }
-  });
-
-  ipcMain.handle('analysis:run-testcase', async (_, type, parsedData) => {
-    const cfg = loadConfig();
-    if (!cfg.geminiApiKey) return { success: false, error: 'API 키가 설정되지 않았습니다.' };
-
-    const prompt = testcasePrompts[type];
-    if (!prompt) return { success: false, error: `알 수 없는 분석 유형: ${type}` };
-
-    try {
-      const genAI = new GoogleGenerativeAI(cfg.geminiApiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', systemInstruction: prompt });
-      const parts = buildParts(parsedData);
-      if (!parts.length) return { success: false, error: '분석할 파일이 없습니다.' };
-
-      const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
-      return { success: true, text: result.response.text() };
-    } catch (e) {
-      return { success: false, error: e.message || String(e) };
-    }
-  });
-
-  ipcMain.handle('analysis:save', async (_, type, content) => {
-    const today = new Date().toISOString().slice(0, 10);
-    const dir = path.join(__dirname, 'analysis', today);
-    fs.mkdirSync(dir, { recursive: true });
-
-    const now = new Date();
-    const time = `${now.getHours().toString().padStart(2,'0')}-${now.getMinutes().toString().padStart(2,'0')}-${now.getSeconds().toString().padStart(2,'0')}`;
-    const typeNames = { prd: 'PRD분석', figma: '피그마분석', compare: 'PRD비교', summary: 'PRD요약', testcase: '테스트케이스' };
-    const fileName = `${typeNames[type] || type}_${time}.md`;
-    const filePath = path.join(dir, fileName);
-
-    fs.writeFileSync(filePath, content, 'utf-8');
-    return { success: true, filePath, dir };
-  });
-
-  ipcMain.handle('analysis:open-folder', async () => {
-    const { shell } = require('electron');
-    const dir = path.join(__dirname, 'analysis');
-    fs.mkdirSync(dir, { recursive: true });
-    shell.openPath(dir);
-  });
-
-  // --- Crash Monitor ---
-  ipcMain.handle('crash:get-history', () => crashMonitor.getHistory());
-  ipcMain.handle('crash:clear-history', () => { crashMonitor.clearHistory(); return { success: true }; });
-  ipcMain.handle('crash:open-folder', () => {
-    const { shell } = require('electron');
-    fs.mkdirSync(crashDir, { recursive: true });
-    shell.openPath(crashDir);
-  });
-  ipcMain.handle('crash:read-log', async (_, filePath) => {
-    try {
-      return { success: true, text: fs.readFileSync(filePath, 'utf-8') };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  });
-
-  ipcMain.handle('crash:test', async () => {
-    const now = new Date();
-    const dummyStacktrace = `03-31 01:20:15.123 E/AndroidRuntime(12345): FATAL EXCEPTION: main
-03-31 01:20:15.123 E/AndroidRuntime(12345): Process: com.example.socialapp, PID: 12345
-03-31 01:20:15.123 E/AndroidRuntime(12345): java.lang.NullPointerException: Attempt to invoke virtual method 'void android.widget.TextView.setText(java.lang.CharSequence)' on a null object reference
-03-31 01:20:15.123 E/AndroidRuntime(12345):     at com.example.socialapp.ui.friend.FriendListFragment.onFriendButtonClick(FriendListFragment.java:142)
-03-31 01:20:15.123 E/AndroidRuntime(12345):     at com.example.socialapp.ui.friend.FriendListAdapter$ViewHolder.lambda$bind$0(FriendListAdapter.java:87)
-03-31 01:20:15.123 E/AndroidRuntime(12345):     at android.view.View.performClick(View.java:7448)
-03-31 01:20:15.123 E/AndroidRuntime(12345):     at android.view.View.access$3600(View.java:810)
-03-31 01:20:15.123 E/AndroidRuntime(12345):     at android.widget.Button.performClick(Button.java:187)
-03-31 01:20:15.123 E/AndroidRuntime(12345):     at android.os.Handler.handleCallback(Handler.java:938)
-03-31 01:20:15.123 E/AndroidRuntime(12345):     at android.os.Looper.loop(Looper.java:223)
-03-31 01:20:15.123 E/AndroidRuntime(12345):     at android.app.ActivityThread.main(ActivityThread.java:7656)`;
-
-    const crash = {
-      time: now.toISOString(),
-      timeLocal: `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`,
-      type: 'CRASH',
-      app: 'com.example.socialapp',
-      activity: 'com.example.socialapp/.ui.friend.FriendListActivity',
-      preview: dummyStacktrace.split('\n').slice(0, 5).join('\n'),
-      stacktrace: dummyStacktrace,
-      file: null,
-      summary: null,
-    };
-
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('crash-detected', crash);
-    }
-
-    const cfg = loadConfig();
-    if (cfg.geminiApiKey) {
-      try {
-        const genAI = new GoogleGenerativeAI(cfg.geminiApiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-        const prompt = buildCrashSummaryPrompt(crash);
-        const result = await model.generateContent(prompt);
-        const summary = result.response.text().trim();
-        crash.summary = summary;
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('crash-summary-updated', { time: crash.time, summary });
-        }
-      } catch {}
-    }
-
-    return { success: true };
-  });
 }
 
 app.whenReady().then(() => {
@@ -777,7 +365,6 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   deviceMonitor.stop();
-  crashMonitor.stop();
   adb.stopLogcat();
   adb.stopScreenRecord();
   scrcpyMgr.stop();
