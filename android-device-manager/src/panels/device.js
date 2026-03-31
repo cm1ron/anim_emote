@@ -26,6 +26,23 @@ const DevicePanel = {
     } catch (e) {
       container.innerHTML = `<p style="color:var(--red)">정보 조회 실패: ${e.message}</p>`;
     }
+    this.refreshPreview();
+  },
+
+  async refreshPreview() {
+    const visual = document.getElementById('device-visual');
+    if (!visual || !App.currentDevice) return;
+    visual.innerHTML = '<div class="loading-spinner"></div>';
+    try {
+      const result = await window.api.screencap(App.currentDevice);
+      if (result.success) {
+        visual.innerHTML = `<img src="data:image/png;base64,${result.data}" style="width:100%;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.4)">`;
+      } else {
+        visual.innerHTML = '<p style="color:var(--text-muted);font-size:12px;text-align:center">미리보기 불가</p>';
+      }
+    } catch {
+      visual.innerHTML = '';
+    }
   },
 
   setupAppInfoButton() {

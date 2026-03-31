@@ -53,18 +53,34 @@ const App = {
       return;
     }
 
+    const filtered = devices.filter(d => !d.serial.includes('_adb-tls-connect'));
+    const unique = [];
+    const seen = new Set();
+    for (const d of filtered) {
+      const key = `${d.model}_${d.product || d.device}`;
+      if (d.serial.includes(':')) {
+        if (!seen.has(key)) { seen.add(key); unique.push(d); }
+      } else {
+        seen.add(key);
+        const idx = unique.findIndex(u => `${u.model}_${u.product || u.device}` === key);
+        if (idx >= 0) unique[idx] = d;
+        else unique.push(d);
+      }
+    }
+
     dot.classList.remove('disconnected');
-    devices.forEach((d) => {
+    unique.forEach((d) => {
       const opt = document.createElement('option');
       opt.value = d.serial;
-      opt.textContent = `${d.model} (${d.serial})`;
+      const label = d.serial.includes(':') ? `${d.model} (무선 ${d.serial})` : `${d.model} (${d.serial})`;
+      opt.textContent = label;
       sel.appendChild(opt);
     });
 
-    if (prev && devices.find((d) => d.serial === prev)) {
+    if (prev && unique.find((d) => d.serial === prev)) {
       sel.value = prev;
-    } else {
-      sel.value = devices[0].serial;
+    } else if (unique.length) {
+      sel.value = unique[0].serial;
     }
     this.currentDevice = sel.value;
     this.onDeviceChanged();
