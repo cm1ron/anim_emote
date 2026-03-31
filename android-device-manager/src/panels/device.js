@@ -13,6 +13,20 @@ const DevicePanel = {
   },
 
   async refresh() {
+    this.detectedPkg = null;
+    this.appInfo = null;
+    const serverEl = document.getElementById('app-info-server');
+    const unrealEl = document.getElementById('app-info-unreal');
+    const appVerEl = document.getElementById('app-info-appver');
+    if (serverEl) serverEl.textContent = '-';
+    if (unrealEl) unrealEl.textContent = '-';
+    if (appVerEl) appVerEl.textContent = '-';
+    if (serverEl) serverEl.style.color = '';
+    if (unrealEl) unrealEl.style.color = '';
+    if (appVerEl) appVerEl.style.color = '';
+    const copyBtn = document.getElementById('copy-app-info');
+    if (copyBtn) copyBtn.style.display = 'none';
+
     const container = document.getElementById('device-info-content');
     if (!App.currentDevice) {
       container.innerHTML = '<p style="color:var(--text-muted)">디바이스를 선택하면 정보가 표시됩니다.</p>';
@@ -23,9 +37,34 @@ const DevicePanel = {
     try {
       const info = await window.api.getDeviceInfo(App.currentDevice);
       container.innerHTML = this.renderInfo(info);
+      this.renderDeviceVisual(info);
     } catch (e) {
       container.innerHTML = `<p style="color:var(--red)">정보 조회 실패: ${e.message}</p>`;
     }
+  },
+
+  renderDeviceVisual(info) {
+    const el = document.getElementById('device-visual');
+    if (!el) return;
+    const model = info.model || 'Device';
+    const android = info.androidVersion || '';
+    const res = info.resolution || '';
+    el.innerHTML = `
+      <div style="text-align:center;padding:16px;">
+        <svg viewBox="0 0 120 220" width="140" style="filter:drop-shadow(0 4px 12px rgba(0,0,0,0.4))">
+          <rect x="10" y="5" width="100" height="210" rx="14" fill="#1a1a2e" stroke="#3a3a5c" stroke-width="2"/>
+          <rect x="18" y="30" width="84" height="155" rx="2" fill="#89b4fa" opacity="0.15"/>
+          <circle cx="60" cy="15" r="3" fill="#3a3a5c"/>
+          <rect x="45" y="12" width="30" height="6" rx="3" fill="#2a2a4a"/>
+          <circle cx="60" cy="200" r="8" fill="none" stroke="#3a3a5c" stroke-width="1.5"/>
+          <text x="60" y="110" text-anchor="middle" fill="#89b4fa" font-size="11" font-family="sans-serif">${model}</text>
+        </svg>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-muted)">
+          ${model}
+          ${android ? '<br>Android ' + android : ''}
+          ${res ? '<br>' + res : ''}
+        </div>
+      </div>`;
   },
 
   setupAppInfoButton() {
@@ -59,7 +98,7 @@ const DevicePanel = {
     btn.textContent = '조회 중...';
     btn.disabled = true;
 
-    if (!this.detectedPkg) this.detectedPkg = await this.detectPkg();
+    this.detectedPkg = await this.detectPkg();
     const pkg = this.detectedPkg;
 
     const info = await window.api.getRunningAppInfo(App.currentDevice, pkg);
@@ -72,7 +111,7 @@ const DevicePanel = {
 
     serverEl.textContent = info.server || '-';
     unrealEl.textContent = info.unrealVersion || '-';
-    appVerEl.textContent = (info.appVersion || '-') + (info.buildType ? ` (${info.buildType})` : '');
+    appVerEl.textContent = info.appVersion || '-';
 
     if (info.server) serverEl.style.color = '#a6e3a1';
     if (info.unrealVersion) unrealEl.style.color = '#a6e3a1';
@@ -86,7 +125,7 @@ const DevicePanel = {
 
   copyAppInfo() {
     if (!this.appInfo) return;
-    const ver = (this.appInfo.appVersion || '-') + (this.appInfo.buildType ? ` (${this.appInfo.buildType})` : '');
+    const ver = this.appInfo.appVersion || '-';
     const text = `서버환경 : ${this.appInfo.server || '-'}\n언리얼버전 : ${this.appInfo.unrealVersion || '-'}\n앱버전 : ${ver}`;
     navigator.clipboard.writeText(text);
     App.toast('앱 정보 복사됨', 'success');

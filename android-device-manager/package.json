@@ -35,20 +35,27 @@
     ],
     "win": {
       "target": [
-        "dir"
+        "nsis",
+        "portable"
       ],
-      "icon": null,
+      "icon": "vendor/scrcpy/icon.ico",
       "sign": false,
       "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "vendor/scrcpy/icon.ico",
+      "artifactName": "AndroidDeviceManager-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "AndroidDeviceManager-Portable.exe"
     },
     "mac": {
       "target": [
         "dir"
       ],
       "identity": null
-    },
-    "portable": {
-      "artifactName": "AndroidDeviceManager.exe"
     }
   },
   "devDependencies": {

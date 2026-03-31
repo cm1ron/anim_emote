@@ -1290,3 +1290,36 @@ body {
   word-break: break-all;
   margin: 0;
 }
+
+/* Device panel guide cards */
+.device-guides {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 0 4px;
+}
+.guide-card {
+  flex: 1;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.guide-card-title {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-tertiary);
+}
+.guide-card-body {
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.guide-card-body p { margin: 4px 0; }
+.guide-card-body ol { margin: 4px 0; padding-left: 18px; }
+.guide-card-body li { margin: 2px 0; }
+.guide-card-body strong { color: var(--text-primary); }

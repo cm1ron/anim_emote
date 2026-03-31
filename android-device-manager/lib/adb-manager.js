@@ -117,7 +117,7 @@ class AdbManager {
 
   async installApk(serial, apkPath) {
     try {
-      const output = await this._execText(['install', '-r', '-d', '--user', '0', apkPath], serial);
+      const output = await this._execText(['install', '-r', '-d', apkPath], serial);
       return { success: output.includes('Success'), output: output.trim() };
     } catch (e) {
       return { success: false, output: e.message };
@@ -156,6 +156,7 @@ class AdbManager {
     }
   }
 
+
   async getForegroundPkg(serial) {
     try {
       const out = await this._execText(['shell', 'dumpsys', 'window', 'displays'], serial);
@@ -169,22 +170,60 @@ class AdbManager {
   async getRunningAppInfo(serial, pkg) {
     const result = { server: '', unrealVersion: '', appVersion: '' };
     const appLogDir = `/sdcard/Android/data/${pkg}/files/App`;
+    let logFiles = [];
 
     try {
       const ls = await this._execText(['shell', 'ls', '-t', appLogDir], serial);
-      const files = ls.trim().split('\n').filter(f => f.startsWith('LogHandler'));
-      if (files.length > 0) {
-        const latest = files[0].trim();
-        const header = await this._execText(['shell', 'head', '-10', `${appLogDir}/${latest}`], serial);
-        const lines = header.split('\n');
-        for (const line of lines) {
+      logFiles = ls.trim().split('\n').filter(f => f.startsWith('LogHandler')).map(f => `${appLogDir}/${f.trim()}`);
+    } catch {}
+
+    if (logFiles.length > 0) {
+      try {
+        const header = await this._execText(['shell', 'head', '-10', logFiles[0]], serial);
+        for (const line of header.split('\n')) {
           const uv = line.match(/^UnrealVersion:\s*(\S+)/);
           if (uv) result.unrealVersion = uv[1];
           const av = line.match(/^AppVersionName:\s*(\S+)/);
           if (av) result.appVersion = av[1];
         }
-      }
-    } catch {}
+      } catch {}
+    }
+
+    for (const logFile of logFiles) {
+      if (result.server) break;
+      try {
+        const out = await this._execText(
+          ['shell', 'grep', '-m', '1', 'createChannel', logFile],
+          serial, { timeout: 5000 }
+        );
+        const m = out.match(/farm-(.+?)\.overdare\.com/);
+        if (m) result.server = m[1];
+      } catch {}
+    }
+
+    for (const logFile of logFiles) {
+      if (result.unrealVersion) break;
+      try {
+        const out = await this._execText(
+          ['shell', 'grep', '-m', '1', 'getUnrealClientVersion', logFile],
+          serial, { timeout: 5000 }
+        );
+        const m = out.match(/getUnrealClientVersion:\s*(\S+)/);
+        if (m) result.unrealVersion = m[1];
+      } catch {}
+    }
+
+    if (!result.unrealVersion) {
+      try {
+        const ueLogPath = `/sdcard/Android/data/${pkg}/files/UnrealGame/Meta/Meta/Saved/Logs/Meta.log`;
+        const out = await this._execText(
+          ['shell', 'grep', '-m', '1', 'Meta Version', ueLogPath],
+          serial, { timeout: 5000 }
+        );
+        const m = out.match(/Meta Version:\s*(\S+)/);
+        if (m) result.unrealVersion = m[1];
+      } catch {}
+    }
 
     if (!result.appVersion) {
       try {
@@ -193,27 +232,23 @@ class AdbManager {
       } catch {}
     }
 
-    try {
-      const log = await this._execText(['logcat', '-d', '-t', '3000'], serial);
-      const lines = log.split('\n');
-      for (let i = lines.length - 1; i >= 0; i--) {
-        const sv = lines[i].match(/tls-farm-(\w+)\.ovdr\.io/);
-        if (sv) { result.server = sv[1]; break; }
-      }
-      if (!result.server) {
+    if (!result.server) {
+      try {
+        const log = await this._execText(['logcat', '-d', '-t', '10000'], serial);
+        const lines = log.split('\n');
         for (let i = lines.length - 1; i >= 0; i--) {
-          const fm = lines[i].match(/farmName=(\w+)/);
-          if (fm) { result.server = fm[1]; break; }
+          const m = lines[i].match(/farm-(.+?)\.(?:overdare\.com|ovdr\.io)/);
+          if (m) { result.server = m[1]; break; }
         }
-      }
-    } catch {}
+      } catch {}
+    }
 
     return result;
   }
 
   async uninstallPackage(serial, pkg) {
     try {
-      const output = await this._execText(['uninstall', '--user', '0', pkg], serial);
+      const output = await this._execText(['uninstall', pkg], serial);
       return { success: output.includes('Success'), output: output.trim() };
     } catch (e) {
       return { success: false, output: e.message };

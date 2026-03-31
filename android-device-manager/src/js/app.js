@@ -23,6 +23,10 @@ const App = {
     document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
     document.getElementById(`panel-${name}`).classList.add('active');
     this.currentPanel = name;
+
+    if (name === 'apps' && this.currentDevice && typeof AppsPanel !== 'undefined' && !AppsPanel.packages.length) {
+      AppsPanel.loadPackages();
+    }
   },
 
   setupDeviceSelector() {
@@ -59,8 +63,7 @@ const App = {
     unique.forEach((d) => {
       const opt = document.createElement('option');
       opt.value = d.serial;
-      const isWireless = d.serial.includes(':');
-      opt.textContent = isWireless ? `${d.model} (무선 ${d.serial})` : `${d.model} (${d.serial})`;
+      opt.textContent = `${d.model} (${d.serial})`;
       sel.appendChild(opt);
     });
 
@@ -74,9 +77,12 @@ const App = {
   },
 
   onDeviceChanged() {
-    if (typeof DevicePanel !== 'undefined') {
-      DevicePanel.detectedPkg = null;
-      DevicePanel.refresh();
+    if (typeof DevicePanel !== 'undefined') DevicePanel.refresh();
+    if (typeof AppsPanel !== 'undefined') {
+      AppsPanel.packages = [];
+      if (this.currentDevice && this.currentPanel === 'apps') {
+        AppsPanel.loadPackages();
+      }
     }
   },
 
@@ -101,6 +107,24 @@ const App = {
     });
     modal.addEventListener('click', (e) => {
       if (e.target === modal) modal.style.display = 'none';
+    });
+
+    document.getElementById('wireless-auto-ip').addEventListener('click', async () => {
+      if (!this.currentDevice) return this.toast('USB로 연결된 디바이스가 없습니다', 'error');
+      this.toast('IP 조회 중...', 'info');
+      const ip = await window.api.getWifiIp(this.currentDevice);
+      if (ip) {
+        document.getElementById('pair-address').value = ip + ':';
+        document.getElementById('connect-address').value = ip + ':5555';
+        document.getElementById('pair-address').focus();
+        const pairInput = document.getElementById('pair-address');
+        pairInput.setSelectionRange(pairInput.value.length, pairInput.value.length);
+        status.textContent = `IP: ${ip} — 디바이스 화면에서 페어링 포트와 코드를 확인하세요`;
+        status.style.color = 'var(--green)';
+        this.toast(`IP 자동 입력 완료 (연결용: ${ip}:5555)`, 'success');
+      } else {
+        this.toast('Wi-Fi IP를 가져올 수 없습니다. USB 연결을 확인해주세요', 'error');
+      }
     });
 
     document.getElementById('pair-btn').addEventListener('click', async () => {
