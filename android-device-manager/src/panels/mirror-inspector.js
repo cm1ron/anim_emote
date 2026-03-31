@@ -1,7 +1,9 @@
-const LOG_PATHS = {
-  app: '/sdcard/Android/data/com.overdare.overdare.dev/files/App',
-  meta: '/sdcard/Android/data/com.overdare.overdare.dev/files/UnrealGame/Meta/Meta/Saved/Logs',
-};
+function getLogPaths(pkg) {
+  return {
+    app: `/sdcard/Android/data/${pkg}/files/App`,
+    meta: `/sdcard/Android/data/${pkg}/files/UnrealGame/Meta/Meta/Saved/Logs`,
+  };
+}
 
 const MirrorInspector = {
   mirroring: false,
@@ -716,7 +718,9 @@ const MirrorInspector = {
     if (!App.currentDevice) return App.toast('디바이스를 먼저 연결해주세요', 'error');
     App.toast('앱 + 메타 로그 추출 중...', 'info');
 
-    const result = await window.api.pullAllLogs(App.currentDevice, [LOG_PATHS.app, LOG_PATHS.meta]);
+    const pkg = DevicePanel.detectedPkg || (await DevicePanel.detectPkg()) || 'com.overdare.overdare.dev';
+    const paths = getLogPaths(pkg);
+    const result = await window.api.pullAllLogs(App.currentDevice, [paths.app, paths.meta]);
     if (!result.success) {
       App.toast(`로그 추출 실패: ${result.error}`, 'error');
       return;
