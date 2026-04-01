@@ -71,9 +71,7 @@ const LogcatPanel = {
       </div>
       <div class="crash-item-device">${device}</div>
       <div class="crash-item-desc">${this._typeLabel(crash.type)}</div>
-      <div class="crash-item-summary" id="crash-summary-${crash.time}">
-        <span class="crash-summary-loading">AI 요약 생성 중...</span>
-      </div>
+      <div class="crash-item-summary" id="crash-summary-${crash.time}"></div>
     `;
     item.addEventListener('click', () => this.showCrashDetail(crash));
     list.prepend(item);

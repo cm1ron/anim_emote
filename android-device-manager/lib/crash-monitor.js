@@ -73,11 +73,13 @@ class CrashMonitor extends EventEmitter {
     this.connectedSerials = [...serials];
 
     for (const serial of serials) {
-      this._startLogcatStream(serial);
       this._resolveDeviceName(serial);
     }
 
     this._seedExistingCrashes().then(() => {
+      for (const serial of this.connectedSerials) {
+        this._startLogcatStream(serial);
+      }
       this._startPollTimer();
       this._startWatchdog();
     });
@@ -108,7 +110,7 @@ class CrashMonitor extends EventEmitter {
   _startLogcatStream(serial) {
     if (this.logcatProcs.has(serial)) return;
 
-    const args = ['-s', serial, 'logcat', '-b', 'main,crash', '-v', 'time'];
+    const args = ['-s', serial, 'logcat', '-b', 'main,crash', '-v', 'time', '-T', '1'];
     const proc = spawn(this.adbPath, args);
 
     if (!proc || !proc.stdout) {
@@ -317,8 +319,16 @@ class CrashMonitor extends EventEmitter {
   _makeCrashKey(serial, type, app, lines) {
     let ts = '';
     for (const l of lines) {
-      const m = l.match(/^(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+)/);
-      if (m) { ts = m[1]; break; }
+      if (/FATAL EXCEPTION|FATAL signal|ANR in/i.test(l)) {
+        const m = l.match(/(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\.\d+/);
+        if (m) { ts = m[1]; break; }
+      }
+    }
+    if (!ts) {
+      for (const l of lines) {
+        const m = l.match(/(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\.\d+/);
+        if (m) { ts = m[1]; break; }
+      }
     }
     let pid = '';
     for (const l of lines) {

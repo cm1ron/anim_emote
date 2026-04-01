@@ -131,42 +131,52 @@ function setupIpcHandlers() {
   const crashDir = path.join(BASE_DIR, 'crashes');
   crashMonitor = new CrashMonitor(adb.adbPath, crashDir);
 
-  crashMonitor.on('crash', async (crash) => {
+  let summaryQueue = [];
+  let summaryRunning = false;
+
+  async function processSummaryQueue() {
+    if (summaryRunning || !summaryQueue.length) return;
+    summaryRunning = true;
+    const crash = summaryQueue.shift();
+    const cfg = loadConfig();
+    if (!cfg.geminiApiKey || !crash.stacktrace) { summaryRunning = false; processSummaryQueue(); return; }
+
+    try {
+      const genAI = new GoogleGenerativeAI(cfg.geminiApiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      const prompt = buildCrashSummaryPrompt(crash);
+
+      const result = await Promise.race([
+        model.generateContent(prompt),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
+      ]);
+      const summary = result.response.text().trim();
+      crash.summary = summary;
+
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('crash-summary-updated', { time: crash.time, summary });
+      }
+    } catch (e) {
+      let errMsg = '';
+      if (e.message === 'timeout') errMsg = '⏱ AI 요약 시간 초과';
+      else if (e.message && e.message.includes('429')) errMsg = '⚠ API 할당량 초과 (내일 리셋)';
+      else if (e.message && e.message.includes('API_KEY')) errMsg = '⚠ API 키 오류';
+      else errMsg = '';
+
+      if (errMsg && mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('crash-summary-updated', { time: crash.time, summary: errMsg });
+      }
+    }
+    summaryRunning = false;
+    if (summaryQueue.length) setTimeout(processSummaryQueue, 2000);
+  }
+
+  crashMonitor.on('crash', (crash) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('crash-detected', crash);
     }
-
-    const cfg = loadConfig();
-    if (cfg.geminiApiKey && crash.stacktrace) {
-      try {
-        const genAI = new GoogleGenerativeAI(cfg.geminiApiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-        const prompt = buildCrashSummaryPrompt(crash);
-
-        const timeoutMs = 15000;
-        const result = await Promise.race([
-          model.generateContent(prompt),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
-        ]);
-        const summary = result.response.text().trim();
-        crash.summary = summary;
-
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('crash-summary-updated', {
-            time: crash.time,
-            summary,
-          });
-        }
-      } catch (e) {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          const errMsg = e.message === 'timeout' ? 'AI 요약 시간 초과 (15초)' : `AI 요약 실패: ${e.message}`;
-          mainWindow.webContents.send('crash-summary-updated', {
-            time: crash.time,
-            summary: errMsg,
-          });
-        }
-      }
-    }
+    summaryQueue.push(crash);
+    processSummaryQueue();
   });
 
   deviceMonitor.on('devices-changed', (devices) => {
