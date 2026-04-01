@@ -15,6 +15,8 @@ let deviceMonitor;
 let crashMonitor;
 let geminiChat = null;
 
+const BASE_DIR = process.env.PORTABLE_EXECUTABLE_DIR || (app.isPackaged ? path.dirname(process.execPath) : __dirname);
+
 const CONFIG_DIR = path.join(app.getPath('userData'), 'config');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'settings.json');
 
@@ -121,7 +123,7 @@ function setupIpcHandlers() {
   scrcpyMgr = new ScrcpyManager(scrcpyDir);
   deviceMonitor = new DeviceMonitor(adb);
 
-  const crashDir = path.join(__dirname, 'crashes');
+  const crashDir = path.join(BASE_DIR, 'crashes');
   crashMonitor = new CrashMonitor(adb.adbPath, crashDir);
 
   crashMonitor.on('crash', async (crash) => {
@@ -255,7 +257,7 @@ function setupIpcHandlers() {
 
   ipcMain.handle('adb:stop-record', async (_, serial) => {
     const today = new Date().toISOString().slice(0, 10);
-    const dir = path.join(__dirname, 'screenshots', today);
+    const dir = path.join(BASE_DIR, 'screenshots', today);
     fs.mkdirSync(dir, { recursive: true });
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2,'0')}-${now.getMinutes().toString().padStart(2,'0')}-${now.getSeconds().toString().padStart(2,'0')}`;
@@ -281,7 +283,7 @@ function setupIpcHandlers() {
   ipcMain.handle('adb:save-screenshot', async (_, base64Data) => {
     const fs = require('fs');
     const today = new Date().toISOString().slice(0, 10);
-    const dir = path.join(__dirname, 'screenshots', today);
+    const dir = path.join(BASE_DIR, 'screenshots', today);
     fs.mkdirSync(dir, { recursive: true });
 
     const now = new Date();
@@ -297,7 +299,7 @@ function setupIpcHandlers() {
     const fs = require('fs');
     const { shell } = require('electron');
     const today = new Date().toISOString().slice(0, 10);
-    const dir = path.join(__dirname, 'screenshots', today);
+    const dir = path.join(BASE_DIR, 'screenshots', today);
     fs.mkdirSync(dir, { recursive: true });
     shell.openPath(dir);
   });
@@ -325,7 +327,7 @@ function setupIpcHandlers() {
     const fs = require('fs');
 
     const today = new Date().toISOString().slice(0, 10);
-    const logsDir = path.join(__dirname, 'logs', today);
+    const logsDir = path.join(BASE_DIR, 'logs', today);
     fs.mkdirSync(logsDir, { recursive: true });
 
     const paths = Array.isArray(remotePaths) ? remotePaths : [remotePaths];
@@ -687,7 +689,7 @@ function setupIpcHandlers() {
 
   ipcMain.handle('analysis:save', async (_, type, content) => {
     const today = new Date().toISOString().slice(0, 10);
-    const dir = path.join(__dirname, 'analysis', today);
+    const dir = path.join(BASE_DIR, 'analysis', today);
     fs.mkdirSync(dir, { recursive: true });
 
     const now = new Date();
@@ -702,7 +704,7 @@ function setupIpcHandlers() {
 
   ipcMain.handle('analysis:open-folder', async () => {
     const { shell } = require('electron');
-    const dir = path.join(__dirname, 'analysis');
+    const dir = path.join(BASE_DIR, 'analysis');
     fs.mkdirSync(dir, { recursive: true });
     shell.openPath(dir);
   });

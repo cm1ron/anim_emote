@@ -392,8 +392,11 @@ class CrashMonitor extends EventEmitter {
       summary: null,
     };
 
-    const filePath = this._saveCrashLog(now, crash, stacktrace);
-    crash.file = filePath;
+    try {
+      const filePath = this._saveCrashLog(now, crash, stacktrace);
+      crash.file = filePath;
+    } catch {}
+
     this.crashes.push(crash);
     this.emit('crash', crash);
   }
