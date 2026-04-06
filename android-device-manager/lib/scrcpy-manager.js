@@ -10,7 +10,7 @@ class ScrcpyManager {
     if (vendorBin && fs.existsSync(vendorBin)) {
       this.scrcpyPath = vendorBin;
     } else if (!isWin) {
-      const fallbacks = ['/opt/homebrew/bin/scrcpy', '/usr/local/bin/scrcpy'];
+      const fallbacks = ['/usr/bin/scrcpy', '/usr/local/bin/scrcpy', '/opt/homebrew/bin/scrcpy'];
       this.scrcpyPath = fallbacks.find((p) => fs.existsSync(p)) || bin;
     } else {
       this.scrcpyPath = bin;

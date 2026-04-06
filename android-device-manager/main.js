@@ -123,6 +123,9 @@ function setupIpcHandlers() {
 
   if (scrcpyDir && fs.existsSync(path.join(scrcpyDir, adbBin))) {
     adb.adbPath = path.join(scrcpyDir, adbBin);
+  } else if (!isWin) {
+    const linuxAdb = ['/usr/bin/adb', '/usr/local/bin/adb'].find((p) => fs.existsSync(p));
+    if (linuxAdb) adb.adbPath = linuxAdb;
   }
 
   scrcpyMgr = new ScrcpyManager(scrcpyDir);
